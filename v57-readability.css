@@ -1,0 +1,259 @@
+/* ======================================================================
+   v57 — усиленная читаемость всех тем и упрощённая вкладка «Дефекты»
+   Этот слой загружается последним и нейтрализует слабые/жёстко заданные
+   оттенки текста, сохраняя цветовые статусы и фирменные заливки.
+   ====================================================================== */
+
+:root {
+  --readable-text: var(--ink);
+  --readable-muted: var(--muted);
+  --readable-surface: var(--surface);
+  --readable-surface-alt: var(--surface-2);
+}
+
+
+/* Статусные оттенки адаптируются к текущей теме, а не остаются фиксированными. */
+:root {
+  --status-neutral: var(--muted);
+  --status-working: var(--red-text);
+  --status-attention: var(--danger-text);
+  --status-ready: var(--success-text);
+  --status-warning: var(--warning-text);
+}
+
+/* Dock больше не использует приглушённые цвета бывшей боковой панели. */
+#navMetricShipment,#navCheckShipment,
+#navMetricProducts,#navCheckProducts,
+#navMetricChecklist,#navCheckChecklist,
+#navMetricDefects,#navCheckDefects,
+#navMetricSummary,#navCheckSummary {
+  color: var(--ink) !important;
+  opacity: 1 !important;
+  font-weight: 760 !important;
+}
+.mobile-nav-item:not(.active) .mobile-nav-index {
+  color: var(--ink) !important;
+}
+.legal-footer {
+  padding-bottom: calc(var(--workflow-dock-height) + 34px) !important;
+}
+
+body,
+.main-area,
+.page-content,
+.topbar,
+.mobile-nav.workflow-dock,
+.workspace-compact-panel,
+.modal,
+.theme-studio,
+.notes-panel,
+.loading-card {
+  color: var(--readable-text) !important;
+}
+
+/* Все рабочие поверхности явно получают собственные цвет и фон. */
+:is(
+  .page-heading,
+  .card,
+  .product-card,
+  .product-status-board,
+  .sku-tabs,
+  .check-shell,
+  .check-main,
+  .step-head,
+  .question-card,
+  .timer-card,
+  .kpi,
+  .empty-state,
+  .table-shell,
+  .acceptance-helper,
+  .workspace-compact-panel,
+  .workspace-compact-item,
+  .defect-product-context,
+  .defect-editor-card
+) {
+  color: var(--readable-text) !important;
+}
+
+.page-content :is(h1,h2,h3,h4,h5,h6,label,legend,th),
+.topbar :is(h1,h2,h3,strong),
+.workspace-compact-panel :is(h1,h2,h3,strong),
+.mobile-nav.workflow-dock .mobile-nav-copy strong,
+.defect-product-context h3,
+.defect-editor-head h3,
+.empty-state strong {
+  color: var(--readable-text) !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
+.page-heading p,
+.card-subtitle,
+.field-hint,
+.product-status-board-head p,
+.product-status-copy small,
+.product-status-value small,
+.step-head p,
+.step-counter small,
+.question-description,
+.workspace-compact-copy small,
+.workspace-compact-copy em,
+.workspace-panel-head small,
+.mobile-nav-copy small,
+.mobile-nav-state,
+.defect-product-identity p,
+.defect-editor-head p,
+.empty-state span,
+.legal-footer,
+.notes-footer,
+.notes-footer span {
+  color: var(--readable-muted) !important;
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+
+/* Таблицы и поля ввода не наследуют случайный цвет от темы/строки. */
+.data-table,
+.data-table :is(td,th),
+.table-toolbar,
+.row-actions {
+  color: var(--readable-text) !important;
+}
+.data-table th {
+  background: var(--surface-2) !important;
+  border-color: var(--line) !important;
+}
+.data-table td {
+  background: var(--surface) !important;
+  border-color: var(--line) !important;
+}
+:is(.input,.select,.textarea,input:not([type="checkbox"]):not([type="radio"]),select,textarea) {
+  color: var(--input-text, var(--ink)) !important;
+  -webkit-text-fill-color: var(--input-text, var(--ink)) !important;
+  caret-color: var(--input-text, var(--ink)) !important;
+}
+:is(.input,.textarea,input,textarea)::placeholder {
+  color: var(--input-placeholder, var(--muted)) !important;
+  -webkit-text-fill-color: var(--input-placeholder, var(--muted)) !important;
+  opacity: 1 !important;
+}
+select option {
+  color: var(--input-text, var(--ink));
+  background: var(--input-bg, var(--surface));
+}
+
+/* Нейтральные кнопки всегда отделены от поверхности. */
+:is(.button-ghost,.button-secondary,.icon-button,.defect-copy-button) {
+  color: var(--ink) !important;
+  background-color: var(--surface-2) !important;
+  border-color: var(--line-strong) !important;
+}
+:is(.button-ghost,.button-secondary,.icon-button,.defect-copy-button):hover:not(:disabled) {
+  color: var(--ink) !important;
+  background-color: var(--surface-3) !important;
+  border-color: var(--line-strong) !important;
+}
+.button-primary,
+.export-arrow,
+.mobile-nav-item.active .mobile-nav-index,
+.workspace-compact-item.active .workspace-compact-index {
+  color: var(--on-brand) !important;
+}
+.button-danger {
+  color: var(--danger-text) !important;
+  background: var(--danger-soft) !important;
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line)) !important;
+}
+
+/* Цветовые статусы остаются цветными, но подписи в них читаемы. */
+.sku-status-badge > span,
+.product-status-value b,
+.status-good,
+.status-warn,
+.status-bad {
+  opacity: 1 !important;
+  text-shadow: none !important;
+}
+.sku-status-badge > small { color: var(--muted) !important; opacity: 1 !important; }
+.mobile-nav-state.complete { color: var(--success-text) !important; }
+
+/* Вкладка «Дефекты»: только выбранный товар и его записи. */
+.defects-workspace { gap: 14px; }
+.defect-product-context {
+  min-height: 92px;
+  padding: 18px 20px;
+  border: 1px solid var(--line-strong);
+  border-left: 4px solid var(--red);
+  background: var(--surface) !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.defect-product-identity { min-width: 0; display: grid; gap: 3px; }
+.defect-product-identity h3 {
+  margin: 0;
+  overflow: hidden;
+  font-size: clamp(18px, 2vw, 23px);
+  line-height: 1.2;
+  letter-spacing: -.025em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.defect-product-identity p { margin: 0; font-size: 10px; }
+.defect-product-identity p strong { color: var(--ink) !important; }
+.defect-product-state { flex: 0 0 auto; }
+
+.defect-editor-card { padding: 0; overflow: hidden; background: var(--surface) !important; }
+.defect-editor-head {
+  min-height: 88px;
+  padding: 17px 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2) !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.defect-editor-head h3 { margin: 2px 0 2px; font-size: 16px; letter-spacing: -.015em; }
+.defect-editor-head p { margin: 0; max-width: 780px; font-size: 9px; }
+.defect-table-scroll { padding: 0; }
+.defect-table { margin: 0; }
+.defect-empty-state {
+  min-height: 260px;
+  padding: 32px 20px;
+  background: var(--surface) !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+.defect-empty-state strong { font-size: 17px; }
+.defect-empty-state span { max-width: 560px; font-size: 10px; }
+.defect-empty-state .button { margin-top: 9px; }
+
+@media (max-width: 760px) {
+  .defect-product-context,
+  .defect-editor-head { align-items: stretch; flex-direction: column; }
+  .defect-product-state { align-self: flex-start; }
+  .defect-product-identity h3 { white-space: normal; }
+  .defect-table-scroll { padding: 10px; }
+}
+
+/* Радужный активный пункт имеет тёмную фиолетовую заливку — текст белый. */
+html:is([data-theme-preset="rainbow"],[data-theme-preset="custom"][data-theme-base-preset="rainbow"])
+.mobile-nav-item.active :is(.mobile-nav-copy strong,.mobile-nav-copy small,.mobile-nav-state) {
+  color: #ffffff !important;
+}
+html:is([data-theme-preset="rainbow"],[data-theme-preset="custom"][data-theme-base-preset="rainbow"])
+.mobile-nav-item.active :is(
+  #navMetricShipment,#navCheckShipment,
+  #navMetricProducts,#navCheckProducts,
+  #navMetricChecklist,#navCheckChecklist,
+  #navMetricDefects,#navCheckDefects,
+  #navMetricSummary,#navCheckSummary
+) {
+  color: #ffffff !important;
+}

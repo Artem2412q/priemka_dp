@@ -1,0 +1,141 @@
+/* v52 — финальный слой контрастности, загружается после всех дизайн-тем. */
+:root { --sidebar-accent-text: var(--sidebar-text); }
+
+/* Sidebar */
+.sidebar .active-rc-panel .sidebar-section-kicker { color: var(--sidebar-text) !important; }
+.sidebar-caption,
+.sidebar-caption span,
+.sidebar-caption small,
+.sidebar-progress-hint,
+.sidebar-progress-ring span { color: var(--sidebar-muted) !important; opacity: 1 !important; }
+.nav-item,
+.nav-item .nav-copy small,
+.nav-item .nav-metric,
+.nav-item .nav-state,
+.nav-item .nav-index { color: var(--sidebar-muted) !important; }
+.nav-item.active,
+.nav-item:hover,
+.nav-item.active .nav-copy strong,
+.nav-item:hover .nav-copy strong { color: var(--sidebar-text) !important; }
+.nav-item.active .nav-index { color: var(--on-brand) !important; }
+
+/* Active/brand fills, including the old unclassed SKU index. */
+.product-title .product-number,
+.sku-tab.active > span:first-child,
+.sku-tab.active .sku-tab-index,
+.step-button.active .step-number,
+.workspace-section-item.active .workspace-section-number,
+.workspace-tab-wrap.active .workspace-tab-index,
+.mobile-nav-item.active,
+.button-primary,
+.export-arrow { color: var(--on-brand) !important; }
+.sku-tab.active > span:first-child,
+.sku-tab.active .sku-tab-index { background: var(--red) !important; }
+.sku-tab.active :is(.sku-tab-copy,.sku-tab-copy b,.sku-tab-copy small,.sku-tab-percent) {
+  background: transparent !important;
+}
+.sku-tab.active :is(.sku-tab-copy,.sku-tab-copy b) { color: var(--ink) !important; }
+.sku-tab.active :is(.sku-tab-copy small,.sku-tab-percent) { color: var(--muted) !important; }
+
+/* General small copy */
+.legal-footer { color: var(--muted) !important; opacity: 1 !important; }
+.notes-footer,
+.notes-footer span,
+.input-suffix { color: var(--muted) !important; opacity: 1 !important; }
+
+/* Auth card always uses the work-surface text system. */
+.auth-card { color: var(--ink) !important; background: var(--surface) !important; background-image: none !important; }
+.auth-card :is(h1,h2,h3,strong,label) { color: var(--ink) !important; }
+.auth-card :is(p,.auth-footnote) { color: var(--muted) !important; }
+.auth-card .eyebrow { color: var(--red-text) !important; }
+.auth-card .input { color: var(--input-text) !important; background: var(--input-bg) !important; border-color: var(--line) !important; }
+.auth-card .input::placeholder { color: var(--input-placeholder) !important; opacity: 1 !important; }
+.auth-card .auth-toggle-pass { color: var(--muted) !important; background: var(--surface-2) !important; }
+.auth-card .auth-toggle-pass:hover { color: var(--ink) !important; background: var(--surface-3) !important; }
+.auth-hero { color: var(--auth-text) !important; background-color: var(--auth-panel) !important; }
+.auth-hero :is(h1,h2,h3,strong) { color: var(--auth-text) !important; }
+.auth-hero :is(p,li,.auth-badge,.auth-hero-brand span) { color: var(--auth-muted) !important; }
+
+/* Explicit status text. */
+.status-good { color: var(--success-text) !important; }
+.status-warn { color: var(--warning-text) !important; }
+.status-bad,
+.issue.error,
+.button-danger,
+.brix-values-input.is-invalid { color: var(--danger-text) !important; }
+
+/* Corporate theme: remove its weaker fixed greys. */
+html:is([data-theme-preset="executive-milk"],[data-theme-preset="custom"][data-theme-base-preset="executive-milk"]) .sidebar-caption,
+html:is([data-theme-preset="executive-milk"],[data-theme-preset="custom"][data-theme-base-preset="executive-milk"]) .sidebar-caption small {
+  color: var(--sidebar-muted) !important;
+}
+html:is([data-theme-preset="executive-milk"],[data-theme-preset="custom"][data-theme-base-preset="executive-milk"]) :is(
+.card-subtitle,.field-hint,#rcTimezoneHint,#liveClockZone,.legal-footer,.notes-footer span) {
+  color: var(--muted) !important;
+}
+
+/* Rainbow: stable dark sidebar surfaces, no white-on-white panels. */
+html:is([data-theme-preset="rainbow"],[data-theme-preset="custom"][data-theme-base-preset="rainbow"]) .sidebar {
+  background-color: #241d49 !important;
+}
+html:is([data-theme-preset="rainbow"],[data-theme-preset="custom"][data-theme-base-preset="rainbow"]) .active-rc-panel {
+  color: #fff9ff !important;
+  background: #30285a !important;
+  border-color: #645b8c !important;
+  box-shadow: none !important;
+}
+html:is([data-theme-preset="rainbow"],[data-theme-preset="custom"][data-theme-base-preset="rainbow"]) .active-rc-panel :is(strong,small) {
+  color: #fff9ff !important;
+}
+html:is([data-theme-preset="rainbow"],[data-theme-preset="custom"][data-theme-base-preset="rainbow"]) .active-rc-panel small,
+html:is([data-theme-preset="rainbow"],[data-theme-preset="custom"][data-theme-base-preset="rainbow"]) .sidebar-progress-hint,
+html:is([data-theme-preset="rainbow"],[data-theme-preset="custom"][data-theme-base-preset="rainbow"]) .sidebar-progress-ring span {
+  color: #d9d2f0 !important;
+}
+html:is([data-theme-preset="rainbow"],[data-theme-preset="custom"][data-theme-base-preset="rainbow"]) .sidebar-progress-ring {
+  background-color: #211a46 !important;
+}
+
+html body .auth-hero .auth-badge { color: var(--auth-text) !important; }
+
+/* v52.1 — пограничные сочетания, выявленные автоматическим аудитом. */
+html body .auth-hero .auth-badge {
+  color: #ffffff !important;
+  background: color-mix(in srgb, var(--auth-panel) 72%, #000000 28%) !important;
+  border-color: color-mix(in srgb, #ffffff 28%, transparent) !important;
+  opacity: 1 !important;
+}
+
+/* Фирменный красный как заливка и как текст — разные токены. */
+html:is([data-theme-preset="executive-milk"],[data-theme-preset="custom"][data-theme-base-preset="executive-milk"]) :is(
+  #sidebarProgressText,
+  #topbarRcProgress,
+  .workspace-section-number,
+  .product-number,
+  .step-number,
+  .step-label,
+  .question-code
+) {
+  color: var(--red-text) !important;
+}
+html:is([data-theme-preset="executive-milk"],[data-theme-preset="custom"][data-theme-base-preset="executive-milk"]) .sku-tab.active {
+  color: var(--ink) !important;
+}
+
+/* В ледяной теме микроподписи и disabled-кнопки не делаем бледными. */
+html:is([data-theme-preset="ice"],[data-theme-preset="custom"][data-theme-base-preset="ice"]) :is(
+  .workspace-section-number,
+  .question-code
+) {
+  color: var(--ink) !important;
+}
+html:is([data-theme-preset="ice"],[data-theme-preset="custom"][data-theme-base-preset="ice"]) .button:disabled {
+  color: var(--ink) !important;
+  background: var(--surface-3) !important;
+  border-color: var(--line-strong) !important;
+  opacity: .68 !important;
+}
+html:is([data-theme-preset="ice"],[data-theme-preset="custom"][data-theme-base-preset="ice"]) .workspace-section-item.active .workspace-section-number {
+  color: var(--on-brand) !important;
+}
+.nav-item:hover .nav-index { color: var(--sidebar-text) !important; }
