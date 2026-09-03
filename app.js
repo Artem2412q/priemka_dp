@@ -157,7 +157,7 @@
     return `<header class="page-head"><div><span class="kicker">${kicker}</span><h1>${title}</h1><p>${text}</p></div>${actions?`<div class="page-actions">${actions}</div>`:''}</header>`;
   }
   function templateBanner() {
-    return `<div class="template-banner"><div class="master"><span>Единственный мастер-шаблон</span><strong>v.05/01-PILOT.2 · schema 1.2-pilot</strong></div><div><span>Ёмкость</span><strong>12 SKU</strong></div><div><span>Разметка</span><strong>5 + 5 + 2</strong></div><div><span>Экспорт</span><strong>1:1</strong></div></div>`;
+    return `<div class="template-banner"><div class="master"><span>Единственный мастер-шаблон</span><strong>v.05/01-PILOT.2 · schema 1.2-pilot</strong></div><div><span>Ёмкость</span><strong>12 SKU</strong></div><div><span>Разметка</span><strong>12 сразу</strong></div><div><span>Экспорт</span><strong>1:1</strong></div></div>`;
   }
   function rcOptions(value) {
     return `<option value="">Выберите РЦ</option>`+S.RC_LIST.map(x=>`<option ${x===value?'selected':''}>${esc(x)}</option>`).join('');
@@ -181,7 +181,7 @@
         <div class="field"><label class="required">Время подключения</label><div class="input-group"><input class="input" type="time" data-shipment="connectionTime" value="${attr(sh.connectionTime)}"><button class="btn btn-ghost" data-action="now-shipment" data-target="connectionTime">Сейчас</button></div><span class="hint">Выгружается точно в D2.</span></div>
       </div></section>
       <section class="panel"><header class="panel-head"><div><h2>Что изменилось в V3</h2><p>Сайт больше не содержит маршрутов экспорта в старый шаблон.</p></div></header><div class="panel-body grid grid-3">
-        <div class="metric"><span>Строки товаров</span><strong>5–16</strong></div><div class="metric"><span>SKU-блоки чек-листа</span><strong>J…CI</strong></div><div class="metric"><span>Техническая схема</span><strong>paired 5+5+2</strong></div>
+        <div class="metric"><span>Строки товаров</span><strong>5–16</strong></div><div class="metric"><span>SKU-блоки чек-листа</span><strong>J…CI</strong></div><div class="metric"><span>Техническая схема</span><strong>fixed 12 SKU</strong></div>
       </div></section>`;
   }
 
@@ -264,7 +264,7 @@
   }
   function renderExport() {
     const w=active(),sh=w.shipment,issues=validationIssues(w),p=progress(w);
-    return `${pageHead('05 · Выгрузка','Проверка и Excel V3','Файл создаётся из присланного мастер-шаблона. Листы, формулы и схема 5+5+2 сохраняются; сайт заполняет только исходные ячейки.',`<button class="btn btn-primary" data-action="export">Выгрузить V3</button>`)}
+    return `${pageHead('05 · Выгрузка','Проверка и Excel V3','Файл создаётся из присланного мастер-шаблона. Все 12 товарных позиций доступны в верхней таблице сразу; формулы и 12 попозиционных блоков сохраняются, сайт заполняет только исходные ячейки.',`<button class="btn btn-primary" data-action="export">Выгрузить V3</button>`)}
       <div class="review-grid"><section class="panel"><header class="panel-head"><div><h2>Сводка приёмки</h2><p>${w.skus.length} SKU · ${esc(sh.rc||'РЦ не выбран')}</p></div></header><div class="panel-body review-list">
         <div class="review-row"><span>№ заявки</span><strong>${esc(sh.requestNumber||'—')}</strong></div><div class="review-row"><span>Поставщик</span><strong>${esc(sh.supplier||'—')}</strong></div><div class="review-row"><span>МОКК</span><strong>${esc(sh.mokk||'—')}</strong></div><div class="review-row"><span>ДП (ID)</span><strong>${esc(sh.dpId||'—')}</strong></div><div class="review-row"><span>Чек-лист</span><strong>${p.checklist[0]} / ${p.checklist[1]}</strong></div>
         <div class="field"><label>Окончание приёмки / заполнения отчёта</label><div class="input-group"><input class="input" type="time" data-shipment="reportEnd" value="${attr(sh.reportEnd)}"><button class="btn btn-ghost" data-action="now-shipment" data-target="reportEnd">Сейчас</button></div><span class="hint">Выгружается в I75; итоговые длительности считает V3.</span></div>

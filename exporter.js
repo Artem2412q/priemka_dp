@@ -70,6 +70,48 @@
     return out;
   }
 
+  function upgradeTemplateToFixed12(workbook) {
+    const ws = workbook.getWorksheet(SCHEMA.TEMPLATE.reportSheet);
+    if (!ws) throw new Error(`Не найден основной лист «${SCHEMA.TEMPLATE.reportSheet}».`);
+
+    // Новый формат: верхняя таблица всегда содержит все 12 SKU. В исходном V3
+    // строки 10–16 физически существуют, но были скрыты группировкой 5+5+2.
+    // Мы не создаём новые строки и не переносим формулы — раскрываем уже
+    // предусмотренные позиции 6–12, сохраняя их формулы и связи с блоками J…CI.
+    for (let row = SCHEMA.TEMPLATE.summaryRows.start; row <= SCHEMA.TEMPLATE.summaryRows.end; row++) {
+      const excelRow = ws.getRow(row);
+      excelRow.hidden = false;
+      excelRow.outlineLevel = 0;
+      // Высота верхних товарных строк в мастер-шаблоне.
+      if (!excelRow.height) excelRow.height = 74.75;
+    }
+    const boundaryRow = ws.getRow(SCHEMA.TEMPLATE.summaryRows.end + 1);
+    boundaryRow.hidden = false;
+    boundaryRow.outlineLevel = 0;
+
+    ws.getCell('J2').value = '12 SKU · все позиции доступны сразу';
+
+    // Унифицируем выпадающий список «Формат» для всех 12 позиций.
+    for (let row = SCHEMA.TEMPLATE.summaryRows.start; row <= SCHEMA.TEMPLATE.summaryRows.end; row++) {
+      ws.getCell(`I${row}`).dataValidation = {
+        type: 'list',
+        allowBlank: true,
+        formulae: ['$AD$2:$AD$3']
+      };
+    }
+
+    // Технические метки новой фиксированной схемы. Они выставляются до
+    // validateTemplate(), поэтому дальше экспорт работает только как fixed-12.
+    const meta = workbook.getWorksheet(SCHEMA.TEMPLATE.metaSheet);
+    if (!meta) throw new Error(`В шаблоне отсутствует лист «${SCHEMA.TEMPLATE.metaSheet}».`);
+    meta.getCell('B12').value = 12;
+    meta.getCell('B13').value = 0;
+    meta.getCell('B14').value = 0;
+    meta.getCell('B15').value = '12';
+    meta.getCell('B16').value = 'fixed-12-sku';
+    return workbook;
+  }
+
   function validateTemplate(workbook) {
     const ws = workbook.getWorksheet(SCHEMA.TEMPLATE.reportSheet);
     if (!ws) throw new Error(`Не найден основной лист «${SCHEMA.TEMPLATE.reportSheet}».`);
@@ -92,7 +134,12 @@
     const directCols = Object.values(C);
     for (let i = 0; i < SCHEMA.TEMPLATE.skuCapacity; i++) {
       const row = SCHEMA.TEMPLATE.summaryRows.start + i;
-      directCols.forEach(col => { ws.getCell(`${col}${row}`).value = null; });
+      directCols.forEach(col => {
+        // D6:D16 — формулы привязки РЦ к первой товарной строке. Не затираем их:
+        // позиции 2–12 должны вести себя точно так же, как в мастер-шаблоне.
+        if (col === C.rc && row > SCHEMA.TEMPLATE.summaryRows.start) return;
+        ws.getCell(`${col}${row}`).value = null;
+      });
       const block = SCHEMA.skuExcelBlock(i);
       SCHEMA.QUESTIONS.forEach(q => {
         ws.getCell(`${block.status}${q.row}`).value = null;
@@ -136,6 +183,8 @@
     };
     Object.entries(C).forEach(([key, col]) => {
       const cell = ws.getCell(`${col}${row}`);
+      // РЦ вводится только в D5. D6:D16 остаются формулами =IF(Gx="","",$D$5).
+      if (key === 'rc' && row > SCHEMA.TEMPLATE.summaryRows.start) return;
       cell.value = values[key] ?? null;
       if (key === 'date' && values[key]) cell.numFmt = 'dd.mm.yyyy';
     });
@@ -245,6 +294,7 @@
     if (!templateBase64) throw new Error('Не найден встроенный мастер-шаблон V3.');
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(base64ToArrayBuffer(templateBase64));
+    upgradeTemplateToFixed12(workbook);
     fillWorkbook(workbook, state);
     return workbook;
   }
@@ -254,5 +304,5 @@
     return workbook.xlsx.writeBuffer();
   }
 
-  return { buildWorkbook, fillWorkbook, exportBuffer, validateTemplate, timeFraction };
+  return { buildWorkbook, fillWorkbook, exportBuffer, validateTemplate, upgradeTemplateToFixed12, timeFraction };
 });

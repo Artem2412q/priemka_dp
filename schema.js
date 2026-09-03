@@ -92,7 +92,7 @@
     templateVersion: 'v.05/01-PILOT.2',
     schemaVersion: '1.2-pilot',
     skuCapacity: 12,
-    layoutMode: '5+5+2',
+    layoutMode: '12',
     reportSheet: 'Чек лист_ДП_Отчет',
     metaSheet: 'Тех_метки_для_Python',
     summaryRows: { start: 5, end: 16 },
