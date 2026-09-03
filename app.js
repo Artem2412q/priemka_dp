@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = 'magnit-dp-workspace-v26';
   const LEGACY_KEYS = ['magnit-dp-manual-v21', 'magnit-dp-manual-v20', 'magnit-dp-manual-v19', 'magnit-dp-manual-v18', 'magnit-dp-manual-v17', 'magnit-dp-state-v14', 'magnit-dp-state-v13', 'magnit-dp-state-v12'];
-  const MAX_SKU = 5;
+  const MAX_SKU = 12;
   const MAX_CHECKLISTS = 5;
   const MAX_DEFECTS = 6;
   const AUTH_SESSION_KEY = 'magnit-dp-auth-v26';
@@ -22,39 +22,39 @@
     { id: 5, title: 'Выкладка выборки на стол', short: 'Выкладка', description: 'Взвешивание тары и раскладка товара в один слой.' },
     { id: 6, title: 'Определение сорта / цветности', short: 'Цветность', description: 'Выполняется только при включённом контроле цветности.' },
     { id: 7, title: 'Сортировка на категории', short: 'Категории', description: 'Осмотр, распределение по категориям и контроль ошибок.' },
-    { id: 8, title: 'Разрушающий контроль и измерения', short: 'Измерения', description: 'Разрушающий контроль выполняется всегда. Плотность и Brix включаются вручную.' },
-    { id: 9, title: 'Контрольное взвешивание категорий', short: 'Категории', description: 'Взвешивание тары и каждой категории товара.' },
+    { id: 8, title: 'Разрушающий контроль и измерения', short: 'Измерения', description: 'Обнуление тары → взвешивание не менее 2% выборки → разрушающий контроль. Плотность и Brix включаются вручную.' },
+    { id: 9, title: 'Контрольное взвешивание категорий', short: 'Категории', description: 'Взвешивание каждой категории товара в таре.' },
     { id: 10, title: 'Очистка рабочего пространства', short: 'Завершение', description: 'Освобождение стола после завершения контроля.' },
   ];
 
   const QUESTIONS = [
-    { code: '0.1', row: 18, step: 0, text: 'Есть фото замера ВПТ', type: 'yesno' },
-    { code: '1.1', row: 21, step: 1, text: 'Акт ТМЦ расположен на столе', type: 'yesno' },
-    { code: '1.2', row: 22, step: 1, text: 'Таблички категорий разложены на столе', type: 'yesno' },
-    { code: '2.1', row: 24, step: 2, text: 'Выборка расположена к камере скотчем', type: 'yesno' },
-    { code: '2.2', row: 25, step: 2, text: 'Скотч виден на каждой тарной единице', type: 'yesno' },
-    { code: '3.1', row: 26, step: 3, text: 'Весы исправны, включены и работают', type: 'yesno' },
-    { code: '3.3', row: 27, step: 3, text: 'Сделано обнуление прибора', type: 'yesno' },
-    { code: '4.1', row: 28, step: 4, text: 'Контрольное взвешивание произведено', type: 'yesno' },
-    { code: '5.1', row: 29, step: 5, text: 'Пустая тара из выборки взвешена', type: 'yesno' },
-    { code: '5.2', row: 30, step: 5, text: 'Каждая единица товара разложена на стол в один слой', type: 'yesno' },
-    { code: '5.3', row: 31, step: 5, text: 'Сколько раз выборка была выложена на стол в один слой', type: 'number', min: 0, unit: 'раз' },
-    { code: '6.1', row: 32, step: 6, text: 'Проверен веером цветности', type: 'yesno', feature: 'requiresColor' },
-    { code: '6.2', row: 33, step: 6, text: 'Веер цветности расположен по центру стола и не закрывает товарные единицы', type: 'yesno', feature: 'requiresColor' },
-    { code: '7.1', row: 34, step: 7, text: 'Каждая товарная единица осмотрена со всех сторон', type: 'yesno' },
-    { code: '7.2', row: 35, step: 7, text: 'Единицы товара разложены по ячейкам с табличками в один слой', type: 'yesno' },
-    { code: '7.3', row: 36, step: 7, text: 'Единицы товара в ячейках соответствуют категории / табличке', type: 'yesno' },
-    { code: '7.4', row: 37, step: 7, text: 'Количество ошибок на качество', type: 'number', min: 0, unit: 'ошибок' },
-    { code: '7.5', row: 38, step: 7, text: 'Замер лимитирующих дефектов / калибра сделан корректно на камеру', type: 'yesno' },
-    { code: '8.1', row: 39, step: 8, text: 'Разрушающий контроль выполнен корректно — не менее 2% от общей выборки категории качества', type: 'yesno' },
-    { code: '8.4', row: 40, step: 8, text: 'Измерение плотности сделано корректно по инструкции и бизнес-процессу', type: 'yesno', feature: 'requiresDensity' },
-    { code: '8.5', row: 41, step: 8, text: 'Прибор плотности расположен на столе с единицей товара', type: 'yesno', feature: 'requiresDensity' },
-    { code: '8.7', row: 42, step: 8, text: 'Замер сахара Brix сделан корректно по инструкции и бизнес-процессу', type: 'yesno', feature: 'requiresBrix' },
-    { code: '8.8', row: 43, step: 8, text: 'Прибор Brix расположен на столе с единицей товара', type: 'yesno', feature: 'requiresBrix' },
-    { code: '9.1', row: 45, step: 9, text: 'Весы исправны, включены и работают', type: 'yesno' },
-    { code: '9.4', row: 46, step: 9, text: 'Взвешана тара, сделано обнуление весов', type: 'yesno' },
-    { code: '9.6', row: 47, step: 9, text: 'Взвешена каждая категория товара в таре: брак, нестандарт, некалибр, осыпь', type: 'yesno' },
-    { code: '10.1', row: 48, step: 10, text: 'Стол очищен от выборки', type: 'yesno' },
+    { code: '0.1', row: 25, step: 0, text: 'Есть фото замера ВПТ', type: 'yesno' },
+    { code: '1.1', row: 27, step: 1, text: 'Акт ТМЦ расположен на столе', type: 'yesno' },
+    { code: '1.2', row: 28, step: 1, text: 'Таблички категорий разложены на столе', type: 'yesno' },
+    { code: '2.1', row: 29, step: 2, text: 'Выборка расположена к камере скотчем', type: 'yesno' },
+    { code: '2.2', row: 30, step: 2, text: 'Скотч виден на каждой тарной единице, выполнена фотофиксация с 4 сторон паллет', type: 'yesno' },
+    { code: '3.1', row: 31, step: 3, text: 'Весы исправны, включены и работают', type: 'yesno' },
+    { code: '3.3', row: 32, step: 3, text: 'Сделано обнуление прибора', type: 'yesno' },
+    { code: '4.1', row: 33, step: 4, text: 'Контрольное взвешивание произведено', type: 'yesno' },
+    { code: '5.1', row: 34, step: 5, text: 'Пустая тара из выборки взвешена', type: 'yesno' },
+    { code: '5.2', row: 35, step: 5, text: 'Каждая единица товара разложена на стол в один слой', type: 'yesno' },
+    { code: '5.3', row: 36, step: 5, text: 'Сколько раз выборка была выложена на стол в один слой', type: 'number', min: 0, unit: 'раз' },
+    { code: '6.1', row: 37, step: 6, text: 'Проверен веером цветности', type: 'yesno', feature: 'requiresColor' },
+    { code: '6.2', row: 38, step: 6, text: 'Веер цветности расположен по центру стола и не закрывает товарные единицы', type: 'yesno', feature: 'requiresColor' },
+    { code: '7.1', row: 39, step: 7, text: 'Каждая товарная единица осмотрена со всех сторон', type: 'yesno' },
+    { code: '7.2', row: 40, step: 7, text: 'Единицы товара разложены по ячейкам с табличками в один слой', type: 'yesno' },
+    { code: '7.3', row: 41, step: 7, text: 'Единицы товара в ячейках соответствуют категории / табличке', type: 'yesno' },
+    { code: '7.4', row: 42, step: 7, text: 'Количество ошибок на качество', type: 'number', min: 0, unit: 'ошибок' },
+    { code: '7.5', row: 43, step: 7, text: 'Замер лимитирующих дефектов / калибра сделан корректно на камеру', type: 'yesno' },
+    { code: '8.0.1', row: 44, step: 8, text: 'Тара обнулена на весах', type: 'yesno' },
+    { code: '8.0.2', row: 45, step: 8, text: 'Отобранные единицы товара для разрушающего контроля взвешаны — не менее 2% от выборки', type: 'yesno' },
+    { code: '8.1', row: 46, step: 8, text: 'Разрушающий контроль выполнен корректно — не менее 2% от общей выборки категории качества', type: 'yesno' },
+    { code: '8.4', row: 47, step: 8, text: 'Измерение плотности сделано корректно по инструкции и бизнес-процессу', type: 'yesno', feature: 'requiresDensity' },
+    { code: '8.5', row: 48, step: 8, text: 'Прибор плотности расположен на столе с единицей товара', type: 'yesno', feature: 'requiresDensity' },
+    { code: '8.7', row: 49, step: 8, text: 'Замер сахара Brix сделан корректно по инструкции и бизнес-процессу', type: 'yesno', feature: 'requiresBrix' },
+    { code: '8.8', row: 50, step: 8, text: 'Прибор Brix расположен на столе с единицей товара', type: 'yesno', feature: 'requiresBrix' },
+    { code: '9.1', row: 52, step: 9, text: 'Взвешена каждая категория товара в таре: брак, нестандарт, некалибр, осыпь', type: 'yesno' },
+    { code: '10.1', row: 53, step: 10, text: 'Стол очищен от выборки', type: 'yesno' },
   ];
 
   const QUESTION_HINTS = {
@@ -76,14 +76,14 @@
     '7.3': 'Перед подтверждением последовательно сравните содержимое каждой ячейки с её табличкой.',
     '7.4': 'Считайте только подтверждённые ошибки классификации. При значении больше нуля добавьте краткое пояснение.',
     '7.5': 'Линейка, шаблон или измерительный инструмент и точка замера должны одновременно находиться в кадре.',
+    '8.0.1': 'Поставьте пустую тару на весы и выполните обнуление. В кадре должно быть видно значение 0 с тарой на весах.',
+    '8.0.2': 'Отберите единицы для разрушающего контроля и взвесьте их. Масса должна составлять не менее 2% от общей выборки.',
     '8.1': 'Объём разрушающего контроля — не менее 2% выборки категории качества. Зафиксируйте округление в большую сторону.',
     '8.4': 'Контролируйте подготовку прибора, точку измерения и стабильность показания. Отклонения укажите в комментарии.',
     '8.5': 'Прибор и измеряемая единица товара должны быть видны в одном кадре до фиксации результата.',
     '8.7': 'Проверьте подготовку образца, чистоту призмы и корректность считывания значения Brix.',
     '8.8': 'Рефрактометр и единица товара должны оставаться на столе в зоне видимости камеры.',
-    '9.1': 'Повторно проверьте работоспособность весов перед взвешиванием категорий — после длительной работы возможен уход нуля.',
-    '9.4': 'Для каждой новой тары выполните отдельное обнуление. Не переносите тару между категориями без повторной проверки.',
-    '9.6': 'Взвешивайте категории поочерёдно и сразу записывайте массу, чтобы исключить перестановку значений.',
+    '9.1': 'Взвешивайте категории поочерёдно в таре: брак, нестандарт, некалибр и осыпь. Сразу фиксируйте показание, чтобы исключить перестановку значений.',
     '10.1': 'После завершения в кадре должны остаться чистый стол, весы и таблички без товара и отходов.',
   };
 
@@ -168,6 +168,16 @@
       'Менеджер ОКК не обеспечил видимость измерительного инструмента и точки замера в кадре.',
       'Менеджер ОКК выполнил замер лимитирующего дефекта или калибра с нарушением установленного порядка.',
     ],
+    '8.0.1': [
+      'Менеджер ОКК не выполнил обнуление тары на весах перед разрушающим контролем.',
+      'Менеджер ОКК не продемонстрировал нулевое значение весов с установленной тарой.',
+      'Менеджер ОКК выполнил подготовку тары к разрушающему контролю без корректного обнуления весов.',
+    ],
+    '8.0.2': [
+      'Менеджер ОКК не взвесил отобранные единицы товара для разрушающего контроля.',
+      'Менеджер ОКК отобрал для разрушающего контроля менее 2% от общей выборки.',
+      'Менеджер ОКК не обеспечил фотофиксацию показания весов при отборе единиц для разрушающего контроля.',
+    ],
     '8.1': [
       'Менеджер ОКК не выполнил разрушающий контроль в требуемом объёме.',
       'Менеджер ОКК выполнил разрушающий контроль менее чем для 2% общей выборки категории качества.',
@@ -194,16 +204,6 @@
       'Менеджер ОКК расположил прибор Brix вне рабочей зоны камеры.',
     ],
     '9.1': [
-      'Менеджер ОКК не проверил исправность и работоспособность весов перед взвешиванием категорий.',
-      'Менеджер ОКК приступил к взвешиванию категорий без повторной проверки весов.',
-      'Менеджер ОКК не обеспечил корректную работу весов на этапе взвешивания категорий.',
-    ],
-    '9.4': [
-      'Менеджер ОКК не взвесил тару и не выполнил обнуление весов перед взвешиванием категорий.',
-      'Менеджер ОКК не выполнил повторное обнуление весов при смене тары.',
-      'Менеджер ОКК выполнил подготовку тары и весов с нарушением установленного порядка.',
-    ],
-    '9.6': [
       'Менеджер ОКК не взвесил каждую категорию товара в таре.',
       'Менеджер ОКК выполнил взвешивание категорий брак, нестандарт, некалибр и осыпь не в полном объёме.',
       'Менеджер ОКК нарушил последовательность или порядок взвешивания категорий товара.',
@@ -434,10 +434,10 @@
     requiresBrix: ['Brix', 'Добавляет контроль сахара Brix в чек-лист'],
   };
 
-  const QUESTIONS_WITHOUT_TIME = new Set(['2.1', '3.1', '5.1', '5.2', '6.1', '7.1', '7.2', '7.3', '8.4', '8.7', '9.1', '9.4']);
+  const QUESTIONS_WITHOUT_TIME = new Set(['2.1', '3.1', '5.1', '5.2', '6.1', '7.1', '7.2', '7.3', '8.0.1', '8.0.2', '8.4', '8.7']);
   const GROUP_CHECKLIST_STEP_IDS = new Set([0, 1, 2]);
   const EXCEL_STEP_ONE_TIME_CODES = new Set(['1.1', '1.2']);
-  const EXCEL_STEP_ONE_TIME_ROW = 23;
+  const EXCEL_STEP_ONE_TIME_ROW = 26;
 
   const defaultSku = () => ({
     id: globalThis.crypto?.randomUUID?.() || `sku-${Date.now()}-${Math.random()}`,
@@ -1576,7 +1576,7 @@
     const progress = operationalStageProgress(state.skus[state.ui.currentSku], 'export');
     const s = state.shipment;
     const validation = getValidation();
-    return `<section class="operational-stage ${progress.complete ? 'is-complete' : ''}" id="operational-export"><header class="operational-stage-head"><span class="operational-stage-index">06</span><div><span class="eyebrow">Финальный контроль</span><h2>Завершение и Excel</h2><p>Excel использует ту же модель данных, что и стандартный интерфейс.</p></div><div class="operational-stage-progress"><strong>${validation.errors.length ? `${validation.errors.length} ошибок` : validation.warnings.length ? `${validation.warnings.length} замеч.` : 'Готово'}</strong></div></header><div class="operational-stage-body"><div class="timer-grid operational-timers">${timerCard('Окончание приёмки', 'acceptanceEnd', 'Время завершения контроля.')}${timerCard('Отчёт заполнен', 'reportEnd', 'Время завершения отчёта.')}</div><div class="operational-export-row"><div><span class="eyebrow">Файл текущего РЦ</span><strong>${escapeHtml(buildChecklistFilename(s))}</strong><small>${validation.errors.length ? 'Сначала исправьте обязательные ошибки.' : 'Перед выгрузкой выполняется полная проверка данных.'}</small></div><button type="button" class="button button-primary operational-export-button" data-action="request-export" data-export-type="old">Выгрузить Excel →</button></div><div class="operational-utility-row"><button type="button" class="button button-ghost" data-action="download-backup">Скачать резервную копию</button><label class="button button-ghost" style="cursor:pointer">Восстановить JSON<input type="file" accept="application/json" data-action="import-backup" hidden></label><button type="button" class="button button-danger" data-action="new-acceptance">Очистить эту страницу</button></div></div></section>`;
+    return `<section class="operational-stage ${progress.complete ? 'is-complete' : ''}" id="operational-export"><header class="operational-stage-head"><span class="operational-stage-index">06</span><div><span class="eyebrow">Финальный контроль</span><h2>Завершение и Excel</h2><p>Excel использует ту же модель данных, что и стандартный интерфейс.</p></div><div class="operational-stage-progress"><strong>${validation.errors.length ? `${validation.errors.length} ошибок` : validation.warnings.length ? `${validation.warnings.length} замеч.` : 'Готово'}</strong></div></header><div class="operational-stage-body"><div class="timer-grid operational-timers">${timerCard('Окончание приёмки', 'acceptanceEnd', 'Время завершения контроля.')}${timerCard('Отчёт заполнен', 'reportEnd', 'Время завершения отчёта.')}</div><div class="operational-export-row"><div><span class="eyebrow">Файл текущего РЦ</span><strong>${escapeHtml(buildChecklistFilename(s))}</strong><small>${validation.errors.length ? 'Сначала исправьте обязательные ошибки.' : 'Перед выгрузкой выполняется полная проверка данных.'}</small></div><button type="button" class="button button-primary operational-export-button" data-action="request-export" data-export-type="new">Выгрузить Excel →</button></div><div class="operational-utility-row"><button type="button" class="button button-ghost" data-action="download-backup">Скачать резервную копию</button><label class="button button-ghost" style="cursor:pointer">Восстановить JSON<input type="file" accept="application/json" data-action="import-backup" hidden></label><button type="button" class="button button-danger" data-action="new-acceptance">Очистить эту страницу</button></div></div></section>`;
   }
 
   function renderOperationalWorkspace() {
@@ -2292,7 +2292,7 @@
   }
 
   function renderProducts() {
-    return `${pageHeading('Товары и основные параметры', 'Добавьте до пяти товарных позиций. Статус каждой позиции обновляется автоматически по мере прохождения всей приёмки.', `<button class="button button-primary" data-action="add-sku" ${state.skus.length >= MAX_SKU ? 'disabled' : ''}>+ Добавить товар</button>`)}
+    return `${pageHeading('Товары и основные параметры', 'Добавьте до 12 товарных позиций. Статус каждой позиции обновляется автоматически по мере прохождения всей приёмки.', `<button class="button button-primary" data-action="add-sku" ${state.skus.length >= MAX_SKU ? 'disabled' : ''}>+ Добавить товар</button>`)}
       <div class="content-stack">
         ${renderProductStatusBoard()}
         <div class="product-toolbar"><div class="notice">Статус «Готова» появится после заполнения реквизитов, чек-листа, ВПТ и итоговых масс.</div><span class="field-hint">${state.skus.length} из ${MAX_SKU} товаров</span></div>
@@ -2605,7 +2605,7 @@
           <section class="card card-pad export-panel">
             <div class="section-head"><div><h3 class="card-title">Выгрузить Excel</h3><p class="card-subtitle">Выгружается только открытая страница — данные других РЦ не смешиваются.</p></div></div>
             <div class="export-choice export-choice-single">
-              <button class="export-button" data-action="request-export" data-export-type="old"><span><strong>Выгрузить Excel</strong><span>Проверенный рабочий шаблон для открытого РЦ</span></span><b class="export-arrow">→</b></button>
+              <button class="export-button" data-action="request-export" data-export-type="new"><span><strong>Выгрузить Excel</strong><span>Проверенный рабочий шаблон для открытого РЦ</span></span><b class="export-arrow">→</b></button>
             </div>
             <div class="notice" style="margin-top:14px">Имя файла: <strong>${escapeHtml(buildChecklistFilename(s))}</strong></div>
           </section>
@@ -3395,7 +3395,7 @@
     if (action === 'remove-defect') { const sku = state.skus[Number(button.dataset.sku)]; const index = Number(button.dataset.defect); if (sku && confirm('Удалить запись о дефекте?')) { sku.defects.splice(index, 1); scheduleSave(); render(); } }
     if (action === 'clear-defect-filters') { state.ui.defectSearch = ''; state.ui.defectSeverity = 'all'; scheduleSave(); render(); }
     if (action === 'set-time') { const key = button.dataset.timeKey; state.shipment[key] = nowLocalInput(); scheduleSave(); const input = button.closest('.timer-card')?.querySelector('[data-time-text]'); if (input) syncTimeControl(input, timeOnly(state.shipment[key])); updateGlobalProgress(); updateDurationDisplays(); debounceRender(); }
-    if (action === 'request-export') requestExport(button.dataset.exportType || 'old');
+    if (action === 'request-export') requestExport(button.dataset.exportType || 'new');
     if (action === 'download-backup') downloadBackup();
     if (action === 'new-acceptance') newAcceptance();
   }
@@ -3591,10 +3591,24 @@
     } catch (error) { setExportLoading(false); console.error(error); toast(`Не удалось сформировать Excel: ${error?.message || error}`, 'error', 9000); }
   }
 
+  function excelColumnName(number) {
+    let n = Number(number) || 0;
+    let out = '';
+    while (n > 0) { n -= 1; out = String.fromCharCode(65 + (n % 26)) + out; n = Math.floor(n / 26); }
+    return out;
+  }
+  function skuExcelBlock(index) {
+    const start = 10 + index * 7; // J, Q, X ... CI
+    return {
+      status: excelColumnName(start), time: excelColumnName(start + 1), comment: excelColumnName(start + 2),
+      defectType: excelColumnName(start), defectVisual: excelColumnName(start + 2), defectCount: excelColumnName(start + 4), defectComment: excelColumnName(start + 5),
+      helper: excelColumnName(94 + index), // CP ... DA
+    };
+  }
+
   function fillExactTemplateWorkbook(workbook, exportState) {
     const ws = workbook.getWorksheet('Чек лист_ДП_Отчет') || workbook.worksheets[0];
     if (!ws) throw new Error('Не найден основной лист шаблона.');
-    // Нейтральные значения защищают резервный экспорт, если очистка ZIP-метаданных недоступна.
     workbook.creator = 'Дистанционная Приёмка';
     workbook.lastModifiedBy = 'Дистанционная Приёмка';
     workbook.lastPrinted = undefined;
@@ -3610,34 +3624,30 @@
     const reportAnchor = acceptanceEnd ?? acceptanceStart ?? connectionStart;
     if (reportAnchor !== null && reportEnd !== null) while (reportEnd < reportAnchor) reportEnd += 1;
     ws.getCell('D2').value = connectionStart ?? null; if (connectionStart !== null) ws.getCell('D2').numFmt = 'hh:mm';
-    ws.getCell('K70').value = reportEnd ?? null; if (reportEnd !== null) ws.getCell('K70').numFmt = 'hh:mm';
-    // В Excel физический порядок столбцов остаётся прежним: M выборка, N брак, O нестандарт, P осыпь, Q калибр.
-    // Порядок карточек на сайте не влияет на адреса выгрузки.
+    ws.getCell('I75').value = reportEnd ?? null; if (reportEnd !== null) ws.getCell('I75').numFmt = 'hh:mm';
+
     const summaryColumns = ['C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','X','AA','AB'];
-    const statusCols = ['J','Q','X','AE','AL']; const timeCols = ['K','R','Y','AF','AM']; const commentCols = ['L','S','Z','AG','AN'];
-    const defectCols = [{ type: 'J', visual: 'L', count: 'N', comment: 'O' }, { type: 'Q', visual: 'S', count: 'U', comment: 'V' }, { type: 'X', visual: 'Z', count: 'AB', comment: 'AC' }, { type: 'AE', visual: 'AG', count: 'AI', comment: 'AJ' }, { type: 'AL', visual: 'AN', count: 'AP', comment: 'AQ' }];
-    const characteristicRanges = ['J61:K66','Q61:R66','X61:Y66','AE61:AF66','AL61:AM66'];
     const allChecklistTimes = [];
+    const blocks = Array.from({ length: MAX_SKU }, (_, index) => skuExcelBlock(index));
+
     for (let i = 0; i < MAX_SKU; i++) {
-      const row = 5 + i; const sku = exportState.skus?.[i];
+      const row = 5 + i; const sku = exportState.skus?.[i]; const block = blocks[i];
       const values = sku ? [s.id || '', s.rc || '', s.date ? new Date(`${s.date}T00:00:00`) : null, s.supplier || '', sku.code || '', sku.name || '', s.format || '', s.mokk || '', s.dpId || '', sku.vpt || '', numberOrBlank(sku.sampleMass), numberOrBlank(sku.defectMass), numberOrBlank(sku.nonstandardMass), numberOrBlank(sku.debrisMass), numberOrBlank(sku.caliberMass), brixValuesForExport(sku) || null, sku.apmError === 'yes' ? 'да' : 'нет', sku.comment || ''] : Array(summaryColumns.length).fill(null);
       summaryColumns.forEach((col, idx) => { const cell = ws.getCell(`${col}${row}`); const value = values[idx]; cell.value = value === '' ? null : value; if (col === 'E' && value) cell.numFmt = 'dd.mm.yyyy'; });
       ws.getCell(`R${row}`).value = null;
-      ws.getCell(`${['J','Q','X','AE','AL'][i]}16`).value = { formula: `H${row}`, result: sku?.name || '' };
+      ws.getCell(`${block.status}23`).value = { formula: `IF(H${row}="","",H${row})`, result: sku?.name || '' };
+
       const stepOneTimes = [];
       const skuTimes = [];
       let lastSkuTime = acceptanceStart ?? connectionStart;
       QUESTIONS.forEach(q => {
-        const statusCell = ws.getCell(`${statusCols[i]}${q.row}`); const timeCell = ws.getCell(`${timeCols[i]}${q.row}`); const commentCell = ws.getCell(`${commentCols[i]}${q.row}`);
+        const statusCell = ws.getCell(`${block.status}${q.row}`); const timeCell = ws.getCell(`${block.time}${q.row}`); const commentCell = ws.getCell(`${block.comment}${q.row}`);
         if (!sku) { statusCell.value = null; timeCell.value = null; commentCell.value = null; return; }
         const answer = sku.checklist?.[q.code] || {}; const applicable = isApplicable(sku, q); const skipped = !applicable || answer.status === 'na';
         statusCell.value = q.type === 'number' ? (numberOrBlank(answer.value) === '' ? null : numberOrBlank(answer.value)) : (skipped ? null : localizedStatus(answer.status));
         const allowTime = applicable && !skipped && questionAllowsTimeValue(q, answer);
         let dt = allowTime ? excelSerialFromInput(answer.time) : null;
-        if (dt !== null) {
-          while (lastSkuTime !== null && dt < lastSkuTime) dt += 1;
-          lastSkuTime = dt;
-        }
+        if (dt !== null) { while (lastSkuTime !== null && dt < lastSkuTime) dt += 1; lastSkuTime = dt; }
         const isStepOneTime = EXCEL_STEP_ONE_TIME_CODES.has(q.code);
         timeCell.value = isStepOneTime ? null : (dt ?? null);
         if (dt !== null && !isStepOneTime) timeCell.numFmt = 'hh:mm';
@@ -3645,32 +3655,52 @@
         if (dt !== null && isStepOneTime) stepOneTimes.push(dt);
         commentCell.value = applicable && !skipped ? (answer.comment || null) : null;
       });
-      const stepOneTimeCell = ws.getCell(`${timeCols[i]}${EXCEL_STEP_ONE_TIME_ROW}`);
       const stepOneTime = stepOneTimes.length ? Math.max(...stepOneTimes) : null;
-      stepOneTimeCell.value = stepOneTime;
-      if (stepOneTime !== null) stepOneTimeCell.numFmt = 'hh:mm';
+      const stepOneTimeCell = ws.getCell(`${block.time}${EXCEL_STEP_ONE_TIME_ROW}`);
+      stepOneTimeCell.value = stepOneTime; if (stepOneTime !== null) stepOneTimeCell.numFmt = 'hh:mm';
+
+      const answeredCount = QUESTIONS.filter(q => q.row >= 27 && q.row <= 53).reduce((sum, q) => {
+        if (!sku || !isApplicable(sku, q)) return sum;
+        const a = sku.checklist?.[q.code] || {};
+        const value = q.type === 'number' ? numberOrBlank(a.value) : (a.status === 'na' ? '' : localizedStatus(a.status));
+        return sum + Number(value !== '' && value !== null && value !== undefined);
+      }, 0);
+      ws.getCell(`${block.status}55`).value = { formula: `COUNTA(${block.status}27:${block.status}53)`, result: answeredCount };
       if (skuTimes.length) {
-        const minTime = Math.min(...skuTimes);
-        let maxTime = Math.max(...skuTimes);
-        while (maxTime < minTime) maxTime += 1;
-        const minCell = ws.getCell(`${timeCols[i]}51`);
-        const maxCell = ws.getCell(`${timeCols[i]}52`);
-        const durationCell = ws.getCell(`${timeCols[i]}53`);
-        minCell.value = { formula: `IF(${statusCols[i]}$50>0,MIN(${timeCols[i]}$18:${timeCols[i]}$49),"")`, result: minTime };
-        maxCell.value = { formula: `IF(${statusCols[i]}$50>0,MAX(${timeCols[i]}$18:${timeCols[i]}$49),"")`, result: maxTime };
-        durationCell.value = { formula: `IFERROR(${timeCols[i]}52-${timeCols[i]}51,"")`, result: maxTime - minTime };
+        const minTime = Math.min(...skuTimes); let maxTime = Math.max(...skuTimes); while (maxTime < minTime) maxTime += 1;
+        ws.getCell(`${block.time}56`).value = { formula: `IF(${block.status}$55>0,MIN(${block.time}$25:${block.time}$54),"")`, result: minTime };
+        ws.getCell(`${block.time}57`).value = { formula: `IF(${block.status}$55>0,MAX(${block.time}$25:${block.time}$54),"")`, result: maxTime };
+        ws.getCell(`${block.time}58`).value = { formula: `IF(OR(${block.status}55=0,${block.time}56="",${block.time}57=""),"",${block.time}57-${block.time}56)`, result: maxTime - minTime };
+        ws.getCell(`${block.time}56`).numFmt = 'hh:mm'; ws.getCell(`${block.time}57`).numFmt = 'hh:mm'; ws.getCell(`${block.time}58`).numFmt = '[h]:mm';
       }
-      const cols = defectCols[i];
+
+      let defectTotal = 0;
       for (let d = 0; d < MAX_DEFECTS; d++) {
-        const target = 61 + d; const defect = sku?.defects?.[d];
-        ws.getCell(`${cols.type}${target}`).value = defectTypeForExport(defect) || null;
-        ws.getCell(`${cols.visual}${target}`).value = localizedVisual(defect?.visual) || null;
-        const count = defect ? numberOrBlank(defect.count) : '';
-        ws.getCell(`${cols.count}${target}`).value = count === '' ? null : count;
-        ws.getCell(`${cols.comment}${target}`).value = defect?.comment || null;
+        const target = 66 + d; const defect = sku?.defects?.[d]; const count = defect ? numberOrBlank(defect.count) : '';
+        ws.getCell(`${block.defectType}${target}`).value = defectTypeForExport(defect) || null;
+        ws.getCell(`${block.defectVisual}${target}`).value = localizedVisual(defect?.visual) || null;
+        ws.getCell(`${block.defectCount}${target}`).value = count === '' ? null : count;
+        ws.getCell(`${block.defectComment}${target}`).value = defect?.comment || null;
+        if (count !== '') defectTotal += Number(count) || 0;
       }
+      ws.getCell(`${block.defectCount}72`).value = { formula: `SUM(${block.defectCount}66:${block.defectCount}71)`, result: defectTotal };
       const characteristicText = (sku?.defects || []).slice(0, MAX_DEFECTS).map(defectTypeForExport).filter(Boolean).join(', ');
-      ws.getCell(`Y${row}`).value = sku ? { formula: `_xlfn.TEXTJOIN(", ",TRUE,${characteristicRanges[i]})`, result: characteristicText } : null;
+      ws.getCell(`Y${row}`).value = sku ? { formula: `_xlfn.TEXTJOIN(", ",TRUE,${block.defectType}66:${block.time}71)`, result: characteristicText } : null;
+
+      if (sku) {
+        const sample = numeric(sku.sampleMass);
+        const masses = [numeric(sku.defectMass), numeric(sku.nonstandardMass), numeric(sku.debrisMass), numeric(sku.caliberMass), numeric(sku.debrisMass)];
+        ['S','T','U','V','W'].forEach((col, idx) => ws.getCell(`${col}${row}`).value = { formula: `IFERROR(${['N','O','P','Q','P'][idx]}${row}*100/M${row},0)`, result: sample ? masses[idx] * 100 / sample : 0 });
+        const apmCount = sku.apmError === 'yes' ? 1 : 0;
+        const processCodes = QUESTIONS.filter(q => q.type === 'yesno' && !['8.0.1','8.0.2'].includes(q.code));
+        const processNo = processCodes.reduce((sum, q) => sum + Number(isApplicable(sku, q) && (sku.checklist?.[q.code]?.status === 'no')), 0);
+        const qualityCount = numeric(sku.checklist?.['7.4']?.value) + Number(sku.checklist?.['7.3']?.status === 'no');
+        ws.getCell(`AD${row}`).value = { formula: `IF(AA${row}="да",1,0)`, result: apmCount };
+        ws.getCell(`AE${row}`).value = { formula: `${block.helper}56+AD${row}`, result: processNo + apmCount };
+        ws.getCell(`AF${row}`).value = { formula: `${block.status}42+${block.helper}41`, result: qualityCount };
+        ws.getCell(`AG${row}`).value = { formula: `IF((AE${row}+AF${row})>0,1,0)`, result: processNo + apmCount + qualityCount > 0 ? 1 : 0 };
+        if (skuTimes.length) ws.getCell(`AH${row}`).value = { formula: `IF(OR(G${row}="",${block.time}58=""),"",${block.time}58)`, result: Math.max(...skuTimes) - Math.min(...skuTimes) };
+      }
     }
 
     const checklistStart = allChecklistTimes.length ? Math.min(...allChecklistTimes) : null;
@@ -3680,19 +3710,20 @@
     if (acceptanceStart !== null && acceptanceEnd !== null) while (acceptanceEnd < acceptanceStart) acceptanceEnd += 1;
     if (acceptanceEnd !== null && reportEnd !== null) while (reportEnd < acceptanceEnd) reportEnd += 1;
     const acceptanceDuration = acceptanceStart !== null && acceptanceEnd !== null ? acceptanceEnd - acceptanceStart : null;
+    const checkAndFillDuration = connectionStart !== null && reportEnd !== null ? reportEnd - connectionStart : null;
+    const totalDuration = checkAndFillDuration !== null && acceptanceDuration !== null ? checkAndFillDuration + acceptanceDuration : null;
+    const statusSumExpr = blocks.map(block => `${block.status}55`).join(',');
+    ws.getCell('K59').value = { formula: `IF(SUM(${statusSumExpr})=0,"",MAX(K57:CJ57))`, result: acceptanceEnd };
+    ws.getCell('K60').value = { formula: `IF(SUM(${statusSumExpr})=0,"",MIN(K56:CJ56))`, result: acceptanceStart };
+    ws.getCell('K61').value = { formula: `IF(OR(SUM(${statusSumExpr})=0,K60="",K59=""),"",K59-K60)`, result: acceptanceDuration };
+    ws.getCell('K59').numFmt = 'hh:mm'; ws.getCell('K60').numFmt = 'hh:mm'; ws.getCell('K61').numFmt = '[h]:mm';
+    ws.getCell('I76').value = { formula: 'IF(OR(D2="",I75=""),"",I75-D2)', result: checkAndFillDuration };
+    ws.getCell('I77').value = { formula: `IF(OR(SUM(${statusSumExpr})=0,I76="",K61=""),"",I76+K61)`, result: totalDuration };
+    ws.getCell('I76').numFmt = '[h]:mm'; ws.getCell('I77').numFmt = '[h]:mm';
     const reportDuration = acceptanceEnd !== null && reportEnd !== null ? reportEnd - acceptanceEnd : null;
-    const totalDuration = connectionStart !== null && reportEnd !== null ? reportEnd - connectionStart : null;
-
-    const acceptanceEndCell = ws.getCell('K54'); acceptanceEndCell.value = acceptanceEnd; acceptanceEndCell.numFmt = 'hh:mm';
-    const acceptanceStartCell = ws.getCell('K55'); acceptanceStartCell.value = acceptanceStart; acceptanceStartCell.numFmt = 'hh:mm';
-    const acceptanceDurationCell = ws.getCell('K56'); acceptanceDurationCell.value = acceptanceDuration; acceptanceDurationCell.numFmt = '[h]:mm';
-    ws.getCell('B71').value = 'Время заполнения отчёта';
-    const reportDurationCell = ws.getCell('K71'); reportDurationCell.value = reportDuration; reportDurationCell.numFmt = '[h]:mm';
-    const totalDurationCell = ws.getCell('K72'); totalDurationCell.value = totalDuration; totalDurationCell.numFmt = '[h]:mm';
     for (let i = 0; i < MAX_SKU; i++) {
-      const reportCell = ws.getCell(`AI${5 + i}`);
-      reportCell.value = exportState.skus?.[i] && reportDuration !== null ? reportDuration : null;
-      reportCell.numFmt = '[h]:mm';
+      const row = 5 + i; const block = blocks[i];
+      ws.getCell(`AI${row}`).value = exportState.skus?.[i] && reportDuration !== null ? { formula: `IF(OR(G${row}="",$I$75="",$K$59=""),"",$I$75-$K$59)`, result: reportDuration } : null;
     }
   }
 
