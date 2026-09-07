@@ -436,7 +436,10 @@
 
   const QUESTIONS_WITHOUT_TIME = new Set(['2.1', '3.1', '5.1', '5.2', '6.1', '7.1', '7.2', '7.3', '8.0.1', '8.0.2', '8.4', '8.7']);
   const GROUP_CHECKLIST_STEP_IDS = new Set([0, 1, 2]);
-  const EXCEL_STEP_ONE_TIME_CODES = new Set(['1.1', '1.2']);
+  // Время каждого шага выгружается строго в его собственную ячейку Excel.
+  // Раньше время шагов 1.1/1.2 сводилось в строку 26 («Не контролируем данный шаг»),
+  // из-за чего время «Таблички категорий разложены на столе» попадало не в свою строку.
+  const EXCEL_STEP_ONE_TIME_CODES = new Set();
   const EXCEL_STEP_ONE_TIME_ROW = 26;
 
   const defaultSku = () => ({
@@ -3656,17 +3659,13 @@
         const allowTime = applicable && !skipped && questionAllowsTimeValue(q, answer);
         let dt = allowTime ? excelSerialFromInput(answer.time) : null;
         if (dt !== null) { while (lastSkuTime !== null && dt < lastSkuTime) dt += 1; lastSkuTime = dt; }
-        const isStepOneTime = EXCEL_STEP_ONE_TIME_CODES.has(q.code);
-        timeCell.value = isStepOneTime ? null : (dt ?? null);
-        if (dt !== null && !isStepOneTime) timeCell.numFmt = 'hh:mm';
+        // Время всегда записываем в ячейку времени именно текущего вопроса.
+        // Нельзя переносить его в строку «Не контролируем данный шаг».
+        timeCell.value = dt ?? null;
+        if (dt !== null) timeCell.numFmt = 'hh:mm';
         if (dt !== null) { skuTimes.push(dt); allChecklistTimes.push(dt); }
-        if (dt !== null && isStepOneTime) stepOneTimes.push(dt);
         commentCell.value = applicable && !skipped ? (answer.comment || null) : null;
       });
-      const stepOneTime = stepOneTimes.length ? Math.max(...stepOneTimes) : null;
-      const stepOneTimeCell = ws.getCell(`${block.time}${EXCEL_STEP_ONE_TIME_ROW}`);
-      stepOneTimeCell.value = stepOneTime; if (stepOneTime !== null) stepOneTimeCell.numFmt = 'hh:mm';
-
       const answeredCount = QUESTIONS.filter(q => q.row >= 27 && q.row <= 53).reduce((sum, q) => {
         if (!sku || !isApplicable(sku, q)) return sum;
         const a = sku.checklist?.[q.code] || {};
