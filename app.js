@@ -630,7 +630,7 @@
     loginOverlay.hidden = authenticated;
     appShell.hidden = !authenticated;
     if (mobileNav) mobileNav.hidden = !authenticated;
-    if (!authenticated) setTimeout(() => document.getElementById('loginUsername')?.focus(), 60);
+    if (!authenticated) setTimeout(() => document.getElementById('loginUsername')?.focus({ preventScroll: true }), 60);
   }
 
   function todayInput() {
@@ -1715,7 +1715,14 @@
   }
 
   function pageHeading(title, description, actions = '') {
-    return `<div class="page-heading"><div><h2>${escapeHtml(title)}</h2><p>${escapeHtml(description)}</p></div><div class="page-heading-actions">${actions}</div></div>`;
+    const copy = {
+      shipment: ['01 / Приёмка', 'Данные поставки', 'Заполните реквизиты и время начала. Дальше — товары и контроль качества.'],
+      products: ['02 / Товарные позиции', 'Товары поставки', 'Каждая позиция под контролем. Добавьте товары и выберите необходимые проверки.'],
+      checklist: ['03 / Контроль качества', 'Внимание к каждому шагу.', 'Общая проверка партии, затем индивидуальный контроль каждой позиции.'],
+      defects: ['04 / Реестр дефектов', 'Детали имеют значение.', 'Зафиксируйте выявленные дефекты. Если их нет — оставьте реестр пустым.'],
+      summary: ['05 / Итоги и выгрузка', 'От контроля — к результату.', 'Итоговые массы, время завершения и готовый отчёт по текущему РЦ.']
+    }[state.ui.page] || ['', title, description];
+    return `<div class="page-heading"><div><div class="page-heading-kicker"><i></i>${escapeHtml(copy[0])}</div><h2>${escapeHtml(copy[1])}</h2><p>${escapeHtml(copy[2])}</p></div><div class="page-heading-actions">${actions}</div></div>`;
   }
   function field(label, path, value, type = 'text', options = {}) {
     const required = options.required ? '<span class="required">*</span>' : '';
@@ -3558,6 +3565,7 @@
   }
   function numberOrBlank(value) { if (value === '' || value === null || value === undefined) return ''; const n = Number(String(value).replace(',', '.')); return Number.isFinite(n) ? n : ''; }
   function setExportLoading(show, status = 'Подготавливаем шаблон…', percent = 10, title = '') {
+    if (window.FreshnessExport) { window.FreshnessExport.update(show, status, percent, title); return; }
     loadingOverlay.hidden = !show;
     document.getElementById('loadingStatus').textContent = status;
     document.getElementById('loadingTitle').textContent = title || 'Формируем Excel';
@@ -3590,6 +3598,7 @@
     try {
       setExportLoading(true, `Создаём ${label} в браузере…`, 20, `Формируем ${label}`);
       await exportExcelSafeBrowser(exportState, normalizedType);
+      if (exportCancelled) return;
       setExportLoading(false); toast(`Excel сформирован.${serverError ? ' Использован резервный режим.' : ''}`, 'success', 6000);
     } catch (error) { setExportLoading(false); console.error(error); toast(`Не удалось сформировать Excel: ${error?.message || error}`, 'error', 9000); }
   }
@@ -3778,7 +3787,7 @@
     const base = [sanitizeFilenamePart(shipment.supplier), sanitizeFilenamePart(shipment.id)].filter(Boolean).join(' ') || 'Чек-лист';
     return `${base}.xlsx`;
   }
-  function downloadBlob(blob, filename) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1600); }
+  function downloadBlob(blob, filename) { const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); if (/\.xlsx$/i.test(filename)) window.FreshnessExport?.downloaded(filename); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1600); }
   function toast(message, type = '', duration = 3500) { const container = document.getElementById('toastContainer'); while (container.children.length >= 2) container.firstElementChild?.remove(); const el = document.createElement('div'); el.className = `toast ${type}`; el.textContent = message; container.appendChild(el); setTimeout(() => el.remove(), duration); }
 
   function openNotes() { state.ui.notesOpen = true; scheduleSave(); updateNotesPanel(); setTimeout(() => notesTextarea.focus(), 0); }

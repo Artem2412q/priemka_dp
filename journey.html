@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Магнит · Путь свежести</title><link rel="stylesheet" href="./assets/fonts/fonts.css"><link rel="stylesheet" href="./journey.css"></head>
+<body>
+<main class="film" id="film" data-scene="0" aria-label="Путь продукции от урожая до полки магазина">
+ <div class="film-still-label" aria-hidden="true"><i></i><span id="chapter">01 / БЕРЕЖНО ВЫРАЩЕНО</span></div>
+ <svg class="cinema" viewBox="0 0 800 430" fill="none" role="img" aria-label="Четыре сцены: урожай, доставка на распределительный центр, контроль качества и магазин Магнит">
+  <defs>
+   <radialGradient id="glow"><stop stop-color="#94776c" stop-opacity=".22"/><stop offset="1" stop-color="#94776c" stop-opacity="0"/></radialGradient>
+   <radialGradient id="tomato" cx=".32" cy=".25" r=".82"><stop stop-color="#ff8e66"/><stop offset=".26" stop-color="#f74436"/><stop offset=".64" stop-color="#d8212f"/><stop offset="1" stop-color="#8e152b"/></radialGradient>
+   <linearGradient id="fruitSide" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f34d38"/><stop offset="1" stop-color="#bd1830"/></linearGradient>
+   <linearGradient id="leaf" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#bace83"/><stop offset="1" stop-color="#3d7141"/></linearGradient>
+   <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#e1efc6" stop-opacity=".24"/><stop offset="1" stop-color="#95b2a0" stop-opacity=".025"/></linearGradient>
+   <linearGradient id="white" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#f8f4e9"/><stop offset="1" stop-color="#d6d5c5"/></linearGradient>
+   <linearGradient id="plinth" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#58434a"/><stop offset="1" stop-color="#352730"/></linearGradient>
+   <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#c6e5a0" stop-opacity="0"/><stop offset="1" stop-color="#c6e5a0" stop-opacity=".36"/></linearGradient>
+   <filter id="shadow" x="-60%" y="-60%" width="240%" height="250%"><feGaussianBlur stdDeviation="14"/></filter>
+   <filter id="softglow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5"/></filter>
+   <g id="fruit">
+    <ellipse cx="0" cy="7" rx="66" ry="61" fill="url(#tomato)"/>
+    <path d="M-55-13C-53-54 0-63 33-36C9-42-12-33-20-9C-34 16-51 8-55-13Z" fill="#fff" opacity=".07"/>
+    <ellipse cx="-30" cy="-21" rx="9" ry="16" transform="rotate(38 -30 -21)" fill="#ffebc9" opacity=".22"/>
+    <path d="M-1-44C-20-45-33-37-41-43C-26-54-17-57-3-51C-12-65-9-72-7-77C5-69 8-64 7-52C19-65 32-62 37-57C21-52 16-47 10-46C23-43 35-39 37-29C19-32 12-38 4-44C-2-32-10-28-22-26C-22-36-12-43-1-44Z" fill="url(#leaf)"/>
+    <path d="M1-49C-4-65 4-75 11-80" stroke="#8cad6d" stroke-width="6" stroke-linecap="round"/>
+    <path d="M-43 31C-33 54-1 62 28 45" stroke="#fd6b49" stroke-width="2" stroke-linecap="round" opacity=".2"/>
+   </g>
+   <g id="crate">
+    <path d="m0 19 73-33 97 42-75 38L0 19Z" fill="#d8bd8d"/>
+    <path d="m0 19 95 47v62L0 78V19Z" fill="#b0885d"/>
+    <path d="m95 66 75-38v58l-75 42V66Z" fill="#715544"/>
+    <path d="m7 37 80 40m-80-17 80 40m17-21 58-31m-58 54 58-32" stroke="#3b2828" stroke-width="7" stroke-linecap="round" opacity=".4"/>
+    <path d="m0 19 95 47 75-38M95 66v62" stroke="#e6cb9d" stroke-width="3" opacity=".6"/>
+   </g>
+   <g id="boxOfFruit"><use href="#crate"/><use href="#fruit" transform="translate(50 11) scale(.34)"/><use href="#fruit" transform="translate(89 5) scale(.33)"/><use href="#fruit" transform="translate(126 25) scale(.34)"/><use href="#fruit" transform="translate(83 28) scale(.36)"/><path d="m0 19 95 47v12L0 32V19Z" fill="#cfa36e"/><path d="m95 66 75-38v11l-75 40V66Z" fill="#98714f"/></g>
+   <g id="check"><circle r="25" fill="#c7dca6"/><path d="m-11 0 7 7 15-16" stroke="#38583c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></g>
+  </defs>
+  <ellipse cx="404" cy="235" rx="338" ry="215" fill="url(#glow)"/>
+  <g class="starfield" fill="#c2b9a2"><circle cx="84" cy="156" r="1"/><circle cx="695" cy="117" r="1.5"/><circle cx="675" cy="307" r="1"/><circle cx="120" cy="329" r="1"/><circle cx="566" cy="48" r="1"/></g>
+  <g class="floor-grid" stroke="#c2b9a2" stroke-opacity=".065"><path d="m78 273 330-177 331 164M102 301 424 128l287 148M139 327 303 237m-1 113 356-188M119 185l342 182M258 115l330 177M169 158l354 186M373 92l280 141"/></g>
+  <g class="scene scene-harvest">
+   <ellipse cx="410" cy="355" rx="225" ry="23" fill="#0f0a0e" opacity=".55" filter="url(#shadow)"/>
+   <g class="greenhouse">
+    <path d="m219 218 154-76 192 90-151 85-195-99Z" fill="#475142"/>
+    <path d="m219 218 195 99v15L219 233v-15Z" fill="#323b31"/><path d="m414 317 151-85v16l-151 84v-15Z" fill="#242c27"/>
+    <path d="M219 218V120l67-76 87 45v53l-154 76Z" fill="url(#glass)" stroke="#b4c4a3" stroke-opacity=".44"/>
+    <path d="m286 44 191 84 88 104V129L373 43 286 44Z" fill="url(#glass)" opacity=".6"/>
+    <path d="m219 120 195 93 63-85L286 44l-67 76Z" fill="url(#glass)" stroke="#d5dabc" stroke-opacity=".4"/>
+    <path d="M414 317V213l63-85 88 1v103l-151 85Z" fill="url(#glass)" stroke="#b4c4a3" stroke-opacity=".4"/>
+    <path d="M219 120v98m195-5v104m151-188v103M286 44v119m191-35v152m-211-137v99m47-77v101m51-77v103M263 141l66-78m-19 102 65-81m-9 107 64-84M219 171l195 97 151-86M219 218l195 99 151-85" stroke="#d3d8bb" stroke-opacity=".35" stroke-width="2"/>
+    <path d="m243 207 166 80m-115-102 163 77m-111-98 153 71" stroke="#73905b" stroke-width="12" stroke-linecap="round" opacity=".35"/>
+    <g fill="#9caf75"><path d="M280 224v-60m0 41c-22-4-22-22-22-22 23 1 23 21 23 21m-1-16c19-2 22-19 22-19-22 0-22 19-22 19M340 254v-63m0 44c-22-4-22-22-22-22 23 1 23 21 23 21m-1-16c19-2 22-19 22-19-22 0-22 19-22 19"/></g>
+    <use href="#fruit" transform="translate(280 214) scale(.16)"/><use href="#fruit" transform="translate(339 243) scale(.16)"/>
+   </g>
+   <g class="harvest-crate"><use href="#boxOfFruit" transform="translate(481 259) scale(.77)"/></g>
+   <g class="hero-tomato"><ellipse cx="330" cy="344" rx="80" ry="13" fill="#160c10" opacity=".5"/><use href="#fruit" transform="translate(322 276) scale(1.08)"/></g>
+   <g class="floating-leaf" transform="translate(560 73) rotate(25)"><path d="M0 43C-19 17-7-2 34-9 40 22 23 47 0 43Z" fill="url(#leaf)"/><path d="M-5 51 26 0" stroke="#d4e5ac" stroke-opacity=".45" stroke-width="2"/></g>
+   <g class="scene-tag" transform="translate(172 95)"><rect width="112" height="30" rx="15" fill="#f9f5e5"/><circle cx="17" cy="15" r="4" fill="#627c4e"/><text x="30" y="19" fill="#4b5840" font-size="10">Свежий урожай</text></g>
+  </g>
+  <g class="scene scene-delivery">
+   <ellipse cx="413" cy="353" rx="242" ry="25" fill="#0f0a0e" opacity=".6" filter="url(#shadow)"/>
+   <path d="m120 296 273-139 302 145-281 114-294-120Z" fill="#392d32"/><path d="m161 298 183 78m-132-98 180 77" stroke="#837371" stroke-dasharray="17 15" stroke-width="2" opacity=".3"/>
+   <g class="warehouse"><path d="m341 152 122-62 195 91-125 69-192-98Z" fill="#e0e1d2"/><path d="m341 152 192 98v100l-192-99v-99Z" fill="url(#white)"/><path d="m533 250 125-69v101l-125 68V250Z" fill="#a9b4a2"/>
+    <path d="m341 164 192 98v12l-192-97v-13Z" fill="#db3e45"/><path d="m533 262 125-69v13l-125 68v-12Z" fill="#b82435"/>
+    <path d="m366 208 63 32v53l-63-32v-53Z" fill="#5b6662"/><path d="m442 247 62 31v53l-62-31v-53Z" fill="#5b6662"/>
+    <path d="m371 221 51 27m-51-18 51 27m-51-18 51 27m29-10 49 25m-49-16 49 25m-49-16 49 25" stroke="#a9b3a1" stroke-width="2" opacity=".55"/>
+    <path d="m553 237 30-16v30l-30 17v-31Zm44-24 40-23v31l-40 24v-32Z" fill="#576d66"/><path d="m557 239 21-11m22-13 32-16" stroke="#ceddca" stroke-opacity=".4" stroke-width="3"/>
+    <text x="377" y="200" transform="rotate(27 377 200)" fill="#63715f" font-size="12" font-weight="700" letter-spacing="2">РАСПРЕДЕЛИТЕЛЬНЫЙ ЦЕНТР</text>
+   </g>
+   <g class="delivery-truck"><ellipse cx="271" cy="339" rx="103" ry="11" fill="#190f17" opacity=".6"/><path d="m166 236 64-32 122 61-64 35-122-64Z" fill="#f1f0df"/><path d="m166 236 122 64v60l-122-65v-59Z" fill="#dbdfd0"/><path d="m288 300 64-35v57l-64 38v-60Z" fill="#b6bfae"/>
+    <path d="m288 310 46-26 45 38-48 30-43-42Z" fill="#ef5552"/><path d="m288 310 43 42v39l-43-24v-57Z" fill="#dd3040"/><path d="m331 352 48-30v42l-48 27v-39Z" fill="#a71932"/>
+    <path d="m298 314 28 25v15l-28-17v-23Z" fill="#526a68"/><path d="m337 348 33-20v19l-33 20v-19Z" fill="#829889"/>
+    <path d="m338 376 32-19" stroke="#eeceb8" stroke-width="6"/><path d="m190 271 69 36" stroke="#d73543" stroke-width="25"/><text x="202" y="282" transform="rotate(28 202 282)" fill="#fff7e9" font-size="13" font-weight="700" letter-spacing="1">МАГНИТ</text>
+    <ellipse cx="195" cy="313" rx="12" ry="17" fill="#22262a" transform="rotate(-15 195 313)"/><ellipse cx="195" cy="313" rx="5" ry="9" fill="#89908a" transform="rotate(-15 195 313)"/>
+    <ellipse cx="313" cy="375" rx="12" ry="17" fill="#22262a" transform="rotate(-15 313 375)"/><ellipse cx="313" cy="375" rx="5" ry="9" fill="#89908a" transform="rotate(-15 313 375)"/>
+   </g>
+   <g class="dock-crate"><use href="#boxOfFruit" transform="translate(568 292) scale(.46)"/></g>
+   <g class="scene-tag" transform="translate(230 113)"><rect width="145" height="32" rx="16" fill="#f9f5e5"/><circle cx="18" cy="16" r="4" fill="#d64345"/><text x="31" y="20" fill="#64544d" font-size="10">Поставка прибыла на РЦ</text></g>
+   <path class="route-dash" d="m450 346 37 18 40-23" stroke="#bfd398" stroke-width="2" stroke-dasharray="5 6"/>
+  </g>
+  <g class="scene scene-quality">
+   <ellipse cx="414" cy="353" rx="207" ry="21" fill="#0f0a0e" opacity=".55" filter="url(#shadow)"/>
+   <g class="control-table"><path d="m230 270 163-82 198 91-167 94-194-103Z" fill="#e1e2cf"/><path d="m230 270 194 103v14L230 284v-14Z" fill="#b7baa7"/><path d="m424 373 167-94v14l-167 94v-14Z" fill="#8a9789"/><path d="M249 284v59l13 7v-59m143 80v52l14 7v-51m152-77v48l-12 9v-48" fill="#889387"/>
+    <path d="m303 281 93-45 103 46-94 49-102-50Z" fill="#a0ada1"/><path d="m303 281 102 50v20l-102-51v-19Z" fill="#89988d"/><path d="m405 331 94-49v20l-94 49v-20Z" fill="#607c70"/>
+    <path d="m354 316 37 18v10l-37-18v-10Z" fill="#31443a"/>
+   </g>
+   <g class="inspection-fruit"><use href="#fruit" transform="translate(400 206) scale(.96)"/></g>
+   <g class="scan-apparatus"><path d="M290 207V129l111-57 125 58v86" stroke="#a8b99b" stroke-width="6" stroke-linecap="round"/><path d="m290 129 119 55 117-54" stroke="#d5ddc0" stroke-width="5" stroke-linecap="round"/>
+    <g class="scan-plane"><path d="m288 164 115-56 124 59-118 64-121-67Z" fill="url(#beam)"/><path d="m288 164 121 67 118-64" stroke="#c8e89d" stroke-width="1.5"/><path d="m288 164 121 67 118-64" stroke="#c8e89d" stroke-width="5" filter="url(#softglow)" opacity=".6"/></g>
+   </g>
+   <g class="test-indicator temp-indicator" transform="translate(175 133)"><rect width="117" height="42" rx="10" fill="#f7f2e4"/><path d="M19 146"/><path d="M19 12a3 3 0 0 1 6 0v14a6 6 0 1 1-6 0V12Z" transform="translate(-4 -1)" stroke="#7b826c" stroke-width="1.4"/><text x="35" y="18" fill="#59664e" font-size="9">Температура</text><text x="35" y="30" fill="#949984" font-size="7">ВПТ · проверка</text></g>
+   <g class="test-indicator brix-indicator" transform="translate(539 198)"><rect width="113" height="42" rx="10" fill="#f7f2e4"/><path d="m18 12-5 9a6 6 0 1 0 10 0l-5-9Z" stroke="#7b826c" stroke-width="1.4"/><text x="33" y="18" fill="#59664e" font-size="9">Параметры</text><text x="33" y="30" fill="#949984" font-size="7">Brix · качество</text></g>
+   <g class="quality-gate" transform="translate(520 320)"><rect x="-62" y="-29" width="153" height="57" rx="13" fill="#384033" stroke="#a7bc8566"/><g class="gate-wait"><circle cx="-35" cy="0" r="16" fill="#706446"/><path d="M-40-2v-6a5 5 0 0 1 10 0v6m-12 0h14v12h-14Z" stroke="#efd9a7" stroke-width="1.5"/><text x="-10" y="-2" fill="#dedac4" font-size="9">Проход закрыт</text><text x="-10" y="12" fill="#9b9e87" font-size="7">Идёт проверка</text></g><g class="gate-success"><use href="#check" transform="translate(-34 0) scale(.65)"/><text x="-10" y="-2" fill="#d9e6be" font-size="9">Контроль пройден</text><text x="-10" y="12" fill="#9daf84" font-size="7">На полку разрешено</text></g></g>
+  </g>
+  <g class="scene scene-store">
+   <ellipse cx="422" cy="355" rx="226" ry="26" fill="#0f0a0e" opacity=".55" filter="url(#shadow)"/>
+   <path d="m198 297 210-110 232 111-205 123-237-124Z" fill="#4b4240"/>
+   <g class="store-building"><path d="m274 152 143-72 195 91-144 78-194-97Z" fill="#e5e6d6"/><path d="m274 152 194 97v115l-194-97V152Z" fill="url(#white)"/><path d="m468 249 144-78v115l-144 78V249Z" fill="#a6b2a0"/>
+    <path d="m263 156 205 102v31L263 187v-31Z" fill="#e73545"/><path d="m468 258 150-83v32l-150 83v-32Z" fill="#af2238"/>
+    <text x="289" y="185" transform="rotate(27 289 185)" fill="#fff9ee" font-size="22" font-weight="700" letter-spacing="2.5">МАГНИТ</text>
+    <path d="m291 211 43 22v62l-43-22v-62Zm52 27 49 24v62l-49-24v-62Zm59 30 47 23v62l-47-23v-62Z" fill="#667d6e"/>
+    <path d="m294 216 15 7v52l-15-8v-51Zm111 57 13 7v52l-13-7v-52Z" fill="#a6bca4" opacity=".5"/>
+    <path d="m301 248 24 12m-24 9 24 12m28-8 27 14m-27 8 27 14" stroke="#c0b591" stroke-width="4"/>
+    <use href="#fruit" transform="translate(307 246) scale(.10)"/><use href="#fruit" transform="translate(318 252) scale(.10)"/><use href="#fruit" transform="translate(360 273) scale(.10)"/><use href="#fruit" transform="translate(373 279) scale(.10)"/>
+    <path d="m494 246 94-51v69l-94 53v-71Z" fill="#698174"/><path d="m499 259 83-45m-83 61 83-45m-83 61 83-45" stroke="#bdc5a5" stroke-width="3"/>
+   </g>
+   <g class="store-fruit"><use href="#boxOfFruit" transform="translate(175 273) scale(.64)"/></g>
+   <g class="store-seal" transform="translate(516 106)"><circle r="44" stroke="#c7dba2" stroke-opacity=".2"/><circle r="35" stroke="#c7dba2" stroke-opacity=".4"/><use href="#check"/></g>
+   <g class="scene-tag" transform="translate(466 348)"><rect width="157" height="33" rx="16.5" fill="#c9dba9"/><path d="m17 17 4 4 8-10" stroke="#4d6845" stroke-width="1.5"/><text x="37" y="21" fill="#4d6845" font-size="10">Свежесть на вашей полке</text></g>
+  </g>
+ </svg>
+ <div class="film-caption"><div><span id="sceneKicker">01 / ПРОИСХОЖДЕНИЕ</span><h2 id="sceneTitle">Всё начинается с урожая.</h2></div><button id="playToggle" type="button" aria-label="Поставить ролик на паузу" title="Пауза"><svg id="playGlyph" viewBox="0 0 20 20" aria-hidden="true"><path d="M7 5v10M13 5v10"/></svg></button></div>
+ <div class="film-route" aria-label="Этапы ролика"><button type="button" data-goto="0" aria-label="Сцена 1: Урожай"><i></i><span>Урожай</span></button><button type="button" data-goto="1" aria-label="Сцена 2: Распределительный центр"><i></i><span>Доставка на РЦ</span></button><button type="button" data-goto="2" aria-label="Сцена 3: Контроль качества"><i></i><span>Контроль качества</span></button><button type="button" data-goto="3" aria-label="Сцена 4: Полка Магнита"><i></i><span>Полка «Магнита»</span></button></div>
+ <p class="sr-only" id="filmDescription">Продукцию выращивают и доставляют на распределительный центр. Проверяют температуру и качество. Пока проверка не закончена, проход закрыт. После успешного контроля продукция поступает на полки магазина «Магнит».</p>
+</main><script src="./journey.js"></script></body></html>
