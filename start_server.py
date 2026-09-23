@@ -19,7 +19,7 @@ os.chdir(ROOT)
 MAX_SKU = 12
 MAX_DEFECTS = 6
 QUESTIONS_WITHOUT_TIME = {'2.1', '3.1', '5.1', '5.2', '6.1', '7.1', '7.2', '7.3', '8.0.1', '8.0.2', '8.4', '8.7'}
-EXCEL_STEP_ONE_TIME_CODES = {'1.1', '1.2'}
+EXCEL_STEP_ONE_TIME_CODES = set()
 EXCEL_STEP_ONE_TIME_ROW = 26
 QUESTIONS = [
     ("0.1", 25, "yesno", None), ("1.1", 27, "yesno", None),
@@ -37,6 +37,31 @@ QUESTIONS = [
     ("8.8", 50, "yesno", "requiresBrix"), ("9.1", 52, "yesno", None),
     ("10.1", 53, "yesno", None),
 ]
+
+
+def excel_layout(export_type="new"):
+    if export_type == "old":
+        return {
+            "report_end_cell": "I75", "counter_row": 55, "min_row": 56, "max_row": 57, "duration_row": 58,
+            "overall_end": "K59", "overall_start": "K60", "overall_duration": "K61",
+            "check_fill": "I76", "total_duration": "I77", "defect_start": 66, "defect_end": 71, "defect_total": 72,
+            "status_end": 53, "time_range_end": 54,
+        }
+    return {
+        "report_end_cell": "I74", "counter_row": 54, "min_row": 55, "max_row": 56, "duration_row": 57,
+        "overall_end": "K58", "overall_start": "K59", "overall_duration": "K60",
+        "check_fill": "I75", "total_duration": "I76", "defect_start": 65, "defect_end": 70, "defect_total": 71,
+        "status_end": 52, "time_range_end": 53,
+    }
+
+
+def excel_question_row(code, row, export_type="new"):
+    if export_type == "old":
+        return row
+    if code == "1.2":
+        return None
+    return row - 1 if row >= 29 else row
+
 
 MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -310,6 +335,7 @@ def sku_block(index):
 
 
 def build_updates(state, export_type="new"):
+    layout = excel_layout(export_type)
     s = state.get("shipment") or {}
     skus = list((state.get("skus") or [])[:MAX_SKU])
     while len(skus) < MAX_SKU:
@@ -333,7 +359,7 @@ def build_updates(state, export_type="new"):
         report_end += timedelta(days=1)
 
     updates["D2"] = (excel_serial(connection_time), "number") if connection_time else (None, "auto")
-    updates["I75"] = (excel_serial(report_end), "number") if report_end else (None, "auto")
+    updates[layout["report_end_cell"]] = (excel_serial(report_end), "number") if report_end else (None, "auto")
 
     sku_min_times = []
     sku_max_times = []
@@ -361,9 +387,12 @@ def build_updates(state, export_type="new"):
         checklist = (sku or {}).get("checklist", {}) if sku else {}
         times = []
         step_one_times = []
-        last_sku_time = acceptance_start or connection_time
+        last_sku_time = connection_time or acceptance_start
         written_statuses = {}
-        for code, qrow, qtype, feature in QUESTIONS:
+        for code, source_qrow, qtype, feature in QUESTIONS:
+            qrow = excel_question_row(code, source_qrow, export_type)
+            if qrow is None:
+                continue
             answer = checklist.get(code, {}) if sku else {}
             applicable = bool(sku) and (not feature or bool(sku.get(feature)))
             is_na = answer.get("status") == "na"
@@ -403,7 +432,7 @@ def build_updates(state, export_type="new"):
         defect_types = []
         defect_total = 0.0
         for r in range(MAX_DEFECTS):
-            target = 66 + r
+            target = layout["defect_start"] + r
             defect = defects[r] if r < len(defects) else {}
             dtype = defect_type_for_export(defect) or None
             dcount = number_or_blank(defect.get("count"))
@@ -415,7 +444,7 @@ def build_updates(state, export_type="new"):
             updates[f"{block['defect_visual']}{target}"] = (local_visual(defect.get("visual")) or None, "auto")
             updates[f"{block['defect_count']}{target}"] = (dcount, "number" if dcount is not None else "auto")
             updates[f"{block['defect_comment']}{target}"] = (defect.get("comment", "") or None, "auto")
-        updates[f"{block['defect_count']}72"] = (defect_total if sku else 0, "number")
+        updates[f"{block['defect_count']}{layout['defect_total']}"] = (defect_total if sku else 0, "number")
 
         if sku:
             sample = number_or_blank(sku.get("sampleMass")) or 0.0
@@ -431,7 +460,7 @@ def build_updates(state, export_type="new"):
             updates[f"Y{row}"] = (", ".join(defect_types), "auto")
             apm_count = 1 if sku.get("apmError") == "yes" else 0
             process_no = 0
-            for code, qrow, qtype, feature in QUESTIONS:
+            for code, source_qrow, qtype, feature in QUESTIONS:
                 if qtype != "yesno" or code in {"8.0.1", "8.0.2"}:
                     continue
                 if feature and not sku.get(feature):
@@ -446,25 +475,25 @@ def build_updates(state, export_type="new"):
             updates[f"AE{row}"] = (process_total, "number")
             updates[f"AF{row}"] = (quality_count, "number")
             updates[f"AG{row}"] = (1 if process_total + quality_count > 0 else 0, "number")
-            answer_count = sum(1 for qrow, val in written_statuses.items() if 27 <= qrow <= 53 and val not in (None, ""))
-            updates[f"{block['status']}55"] = (answer_count, "number")
+            answer_count = sum(1 for qrow, val in written_statuses.items() if 27 <= qrow <= layout['status_end'] and val not in (None, ""))
+            updates[f"{block['status']}{layout['counter_row']}"] = (answer_count, "number")
             if times:
                 min_t, max_t = min(times), max(times)
                 sku_min_times.append(min_t); sku_max_times.append(max_t)
-                updates[f"{block['time']}56"] = (excel_serial(min_t), "number")
-                updates[f"{block['time']}57"] = (excel_serial(max_t), "number")
-                updates[f"{block['time']}58"] = (duration_days(min_t, max_t), "number")
+                updates[f"{block['time']}{layout['min_row']}"] = (excel_serial(min_t), "number")
+                updates[f"{block['time']}{layout['max_row']}"] = (excel_serial(max_t), "number")
+                updates[f"{block['time']}{layout['duration_row']}"] = (duration_days(min_t, max_t), "number")
                 updates[f"AH{row}"] = (duration_days(min_t, max_t), "number")
             else:
-                updates[f"{block['time']}56"] = (None, "auto")
-                updates[f"{block['time']}57"] = (None, "auto")
-                updates[f"{block['time']}58"] = (None, "auto")
+                updates[f"{block['time']}{layout['min_row']}"] = (None, "auto")
+                updates[f"{block['time']}{layout['max_row']}"] = (None, "auto")
+                updates[f"{block['time']}{layout['duration_row']}"] = (None, "auto")
                 updates[f"AH{row}"] = (None, "auto")
         else:
             for col in ["S", "T", "U", "V", "W", "Y", "AD", "AE", "AF", "AG", "AH", "AI"]:
                 updates[f"{col}{row}"] = (None, "auto")
-            updates[f"{block['status']}55"] = (0, "number")
-            for rr in [56,57,58]:
+            updates[f"{block['status']}{layout['counter_row']}"] = (0, "number")
+            for rr in [layout['min_row'], layout['max_row'], layout['duration_row']]:
                 updates[f"{block['time']}{rr}"] = (None, "auto")
 
     checklist_start = min(sku_min_times) if sku_min_times else None
@@ -480,11 +509,11 @@ def build_updates(state, export_type="new"):
     check_and_fill_duration = duration_days(connection_time, report_end) if connection_time and report_end else None
     total_duration = (check_and_fill_duration + acceptance_duration) if check_and_fill_duration is not None and acceptance_duration is not None else None
     report_duration = duration_days(overall_max, report_end) if overall_max and report_end else None
-    updates["K59"] = (excel_serial(overall_max), "number") if overall_max else (None, "auto")
-    updates["K60"] = (excel_serial(overall_min), "number") if overall_min else (None, "auto")
-    updates["K61"] = (acceptance_duration, "number") if acceptance_duration is not None else (None, "auto")
-    updates["I76"] = (check_and_fill_duration, "number") if check_and_fill_duration is not None else (None, "auto")
-    updates["I77"] = (total_duration, "number") if total_duration is not None else (None, "auto")
+    updates[layout["overall_end"]] = (excel_serial(overall_max), "number") if overall_max else (None, "auto")
+    updates[layout["overall_start"]] = (excel_serial(overall_min), "number") if overall_min else (None, "auto")
+    updates[layout["overall_duration"]] = (acceptance_duration, "number") if acceptance_duration is not None else (None, "auto")
+    updates[layout["check_fill"]] = (check_and_fill_duration, "number") if check_and_fill_duration is not None else (None, "auto")
+    updates[layout["total_duration"]] = (total_duration, "number") if total_duration is not None else (None, "auto")
     for i, sku in enumerate(skus):
         updates[f"AI{5 + i}"] = (report_duration if sku and report_duration is not None else None, "number" if sku and report_duration is not None else "auto")
 
@@ -511,11 +540,17 @@ def build_excel(state, export_type="new"):
         updates, caches = build_updates(state, normalized_type)
         for ref, (value, kind) in updates.items():
             set_cell_value(sheet_root, ref, value, kind)
-        # Строка 23 — отдельное поле времени завершения шага 1.
-        # Берём формат hh:mm у соседней штатной ячейки тайм-кода.
-        for i in range(MAX_SKU):
-            time_col = sku_block(i)["time"]
-            copy_cell_style(sheet_root, f"{time_col}29", f"{time_col}{EXCEL_STEP_ONE_TIME_ROW}")
+        # В новом шаблоне каждый тайм-код пишется только в строку своего вопроса.
+        if normalized_type == "new":
+            helper_rows = [25,26,27,28,29,30,31,32,33,34,36,37,38,39,40,42,45,46,47,48,49,51,52]
+            for i in range(MAX_SKU):
+                helper_col = sku_block(i)["helper"]
+                set_formula_with_result(
+                    sheet_root,
+                    f"{helper_col}55",
+                    "+".join(f"{helper_col}{r}" for r in helper_rows),
+                    0,
+                )
         for ref, (value, is_string) in caches.items():
             set_formula_cache(sheet_root, ref, value, string=is_string)
 
@@ -621,7 +656,7 @@ def main():
     if server is None:
         server = ThreadingHTTPServer(("127.0.0.1", 0), QualityHandler)
     port = server.server_address[1]
-    url = f"http://127.0.0.1:{port}/index.html?v=59"
+    url = f"http://127.0.0.1:{port}/index.html?v=60"
     print("=" * 68)
     print("Дистанционная Приёмка v54 запущена — текстовая визуальная оценка дефектов")
     print(url)

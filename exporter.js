@@ -48,9 +48,12 @@
   function localizedStatus(status) {
     if (status === 'yes') return 'да';
     if (status === 'no') return 'нет';
+    if (status === 'na') return 'не контролируется';
     return null;
   }
   function isApplicable(sku, q) { return !q.feature || Boolean(sku?.[q.feature]); }
+  function questionExportRow(q) { return q?.exportRow === null ? null : (q?.exportRow ?? q?.row ?? null); }
+
   function questionHasTime(q, answer) {
     if (!q || SCHEMA.QUESTIONS_WITHOUT_TIME.has(q.code) || q.noTime) return false;
     if (q.code === '7.4' && (numberOrNull(answer?.value) ?? 0) <= 0) return false;
@@ -90,6 +93,14 @@
     boundaryRow.outlineLevel = 0;
 
     ws.getCell('J2').value = '12 SKU · все позиции доступны сразу';
+
+    // В шаблоне 09.09.2026 удалён пункт 1.2, поэтому исходная сумма помощника
+    // содержит #REF!. Пересобираем её по фактическим строкам нового шаблона.
+    const helperRows = [25,26,27,28,29,30,31,32,33,34,36,37,38,39,40,42,45,46,47,48,49,51,52];
+    for (let i = 0; i < SCHEMA.TEMPLATE.skuCapacity; i++) {
+      const helper = SCHEMA.skuExcelBlock(i).helper;
+      ws.getCell(`${helper}55`).value = { formula: helperRows.map(row => `${helper}${row}`).join('+'), result: 0 };
+    }
 
     // Унифицируем выпадающий список «Формат» для всех 12 позиций.
     for (let row = SCHEMA.TEMPLATE.summaryRows.start; row <= SCHEMA.TEMPLATE.summaryRows.end; row++) {
@@ -142,11 +153,12 @@
       });
       const block = SCHEMA.skuExcelBlock(i);
       SCHEMA.QUESTIONS.forEach(q => {
-        ws.getCell(`${block.status}${q.row}`).value = null;
-        ws.getCell(`${block.time}${q.row}`).value = null;
-        ws.getCell(`${block.comment}${q.row}`).value = null;
+        const qRow = questionExportRow(q);
+        if (!qRow) return;
+        ws.getCell(`${block.status}${qRow}`).value = null;
+        ws.getCell(`${block.time}${qRow}`).value = null;
+        ws.getCell(`${block.comment}${qRow}`).value = null;
       });
-      ws.getCell(`${block.time}${SCHEMA.TEMPLATE.sharedStepOneTimeRow}`).value = null;
       for (let r = SCHEMA.TEMPLATE.defectRows.start; r <= SCHEMA.TEMPLATE.defectRows.end; r++) {
         ws.getCell(`${block.defectType}${r}`).value = null;
         ws.getCell(`${block.defectVisual}${r}`).value = null;
@@ -193,14 +205,15 @@
   function writeChecklist(ws, index, sku, connectionStart) {
     const block = SCHEMA.skuExcelBlock(index);
     let lastTime = connectionStart;
-    const stepOneTimes = [];
 
     for (const q of SCHEMA.QUESTIONS) {
+      const qRow = questionExportRow(q);
+      if (!qRow) continue;
       const answer = sku.checklist?.[q.code] || {};
       const applicable = isApplicable(sku, q);
-      const statusCell = ws.getCell(`${block.status}${q.row}`);
-      const timeCell = ws.getCell(`${block.time}${q.row}`);
-      const commentCell = ws.getCell(`${block.comment}${q.row}`);
+      const statusCell = ws.getCell(`${block.status}${qRow}`);
+      const timeCell = ws.getCell(`${block.time}${qRow}`);
+      const commentCell = ws.getCell(`${block.comment}${qRow}`);
       if (!applicable) continue;
 
       if (q.type === 'number') statusCell.value = numberOrNull(answer.value);
@@ -212,19 +225,10 @@
         if (t !== null) {
           t = normalizeAfter(t, lastTime);
           lastTime = t;
-          if (q.code === '1.1' || q.code === '1.2') stepOneTimes.push(t);
-          else {
-            timeCell.value = t;
-            timeCell.numFmt = 'hh:mm';
-          }
+          timeCell.value = t;
+          timeCell.numFmt = 'hh:mm';
         }
       }
-    }
-
-    if (stepOneTimes.length) {
-      const shared = ws.getCell(`${block.time}${SCHEMA.TEMPLATE.sharedStepOneTimeRow}`);
-      shared.value = Math.max(...stepOneTimes);
-      shared.numFmt = 'hh:mm';
     }
   }
 

@@ -23,38 +23,38 @@
   ];
 
   const QUESTIONS = [
-    { code: '0.1', row: 25, step: 0, text: 'Есть фото замера ВПТ', type: 'yesno' },
-    { code: '1.1', row: 27, step: 1, text: 'Акт ТМЦ расположен на столе', type: 'yesno' },
-    { code: '1.2', row: 28, step: 1, text: 'Таблички категорий разложены на столе', type: 'yesno' },
-    { code: '2.1', row: 29, step: 2, text: 'Выборка расположена к камере скотчем', type: 'yesno' },
-    { code: '2.2', row: 30, step: 2, text: 'Скотч виден на каждой тарной единице, фото с 4 сторон паллет', type: 'yesno' },
-    { code: '3.1', row: 31, step: 3, text: 'Весы исправны, включены и работают', type: 'yesno' },
-    { code: '3.3', row: 32, step: 3, text: 'Сделано ли обнуление прибора', type: 'yesno' },
-    { code: '4.1', row: 33, step: 4, text: 'Взвешивание произведено', type: 'yesno' },
-    { code: '5.1', row: 34, step: 5, text: 'Пустую тару из выборки взвесили на весах', type: 'yesno' },
-    { code: '5.2', row: 35, step: 5, text: 'Каждая единица товара разложена на стол в 1 слой', type: 'yesno' },
-    { code: '5.3', row: 36, step: 5, text: 'Сколько раз была выкладка выборки на стол в 1 слой', type: 'number', min: 0, unit: 'раз' },
-    { code: '6.1', row: 37, step: 6, text: 'Проверен веером цветности', type: 'yesno', feature: 'requiresColor' },
-    { code: '6.2', row: 38, step: 6, text: 'Веер цветности расположен по центру стола и не закрывает товарные единицы', type: 'yesno', feature: 'requiresColor' },
-    { code: '7.1', row: 39, step: 7, text: 'Каждая товарная единица осмотрена со всех сторон', type: 'yesno' },
-    { code: '7.2', row: 40, step: 7, text: 'Единицы товара разложены по ячейкам с табличками в 1 слой', type: 'yesno' },
-    { code: '7.3', row: 41, step: 7, text: 'Единицы товара в ячейках соответствуют категории / табличке', type: 'yesno' },
-    { code: '7.4', row: 42, step: 7, text: 'Количество ошибок на качество', type: 'number', min: 0, unit: 'ошибок' },
-    { code: '7.5', row: 43, step: 7, text: 'Замер лимитирующих дефектов / калибра сделан корректно на камеру', type: 'yesno' },
-    { code: '8.0.1', row: 44, step: 8, text: 'Тара обнулена на весах', type: 'yesno', noTime: true },
-    { code: '8.0.2', row: 45, step: 8, text: 'Отобранные единицы для разрушающего контроля взвешаны — не менее 2% от выборки', type: 'yesno', noTime: true },
-    { code: '8.1', row: 46, step: 8, text: 'Разрушающий контроль сделан корректно — не менее 2% от общей выборки из категории качества', type: 'yesno' },
-    { code: '8.4', row: 47, step: 8, text: 'Замер плотности сделан корректно по инструкции и бизнес-процессу', type: 'yesno', feature: 'requiresDensity' },
-    { code: '8.5', row: 48, step: 8, text: 'Прибор плотности расположен на столе с единицей товара', type: 'yesno', feature: 'requiresDensity' },
-    { code: '8.7', row: 49, step: 8, text: 'Замер сахара Brix сделан корректно по инструкции и бизнес-процессу', type: 'yesno', feature: 'requiresBrix' },
-    { code: '8.8', row: 50, step: 8, text: 'Прибор Brix расположен на столе с единицей товара', type: 'yesno', feature: 'requiresBrix' },
-    { code: '9.1', row: 52, step: 9, text: 'Взвешена каждая категория товара в таре: брак, нестандарт, некалибр, осыпь', type: 'yesno' },
-    { code: '10.1', row: 53, step: 10, text: 'Очищен стол от выборки', type: 'yesno' },
+    { code: '0.1', row: 25, exportRow: 25, step: 0, text: 'Есть фото замера ВПТ', type: 'yesno' },
+    { code: '1.1', row: 27, exportRow: 27, step: 1, text: 'Акт ТМЦ расположен на столе', type: 'yesno' },
+    { code: '1.2', row: 28, exportRow: null, step: 1, text: 'Таблички категорий разложены на столе', type: 'yesno' },
+    { code: '2.1', row: 29, exportRow: 28, step: 2, text: 'Выборка расположена к камере скотчем', type: 'yesno' },
+    { code: '2.2', row: 30, exportRow: 29, step: 2, text: 'Скотч виден на каждой тарной единице, фото с 4 сторон паллет', type: 'yesno' },
+    { code: '3.1', row: 31, exportRow: 30, step: 3, text: 'Весы исправны, включены и работают', type: 'yesno' },
+    { code: '3.3', row: 32, exportRow: 31, step: 3, text: 'Сделано ли обнуление прибора', type: 'yesno' },
+    { code: '4.1', row: 33, exportRow: 32, step: 4, text: 'Взвешивание произведено', type: 'yesno' },
+    { code: '5.1', row: 34, exportRow: 33, step: 5, text: 'Пустую тару из выборки взвесили на весах', type: 'yesno' },
+    { code: '5.2', row: 35, exportRow: 34, step: 5, text: 'Каждая единица товара разложена на стол в 1 слой', type: 'yesno' },
+    { code: '5.3', row: 36, exportRow: 35, step: 5, text: 'Сколько раз была выкладка выборки на стол в 1 слой', type: 'number', min: 0, unit: 'раз' },
+    { code: '6.1', row: 37, exportRow: 36, step: 6, text: 'Проверен веером цветности', type: 'yesno', feature: 'requiresColor' },
+    { code: '6.2', row: 38, exportRow: 37, step: 6, text: 'Веер цветности расположен по центру стола и не закрывает товарные единицы', type: 'yesno', feature: 'requiresColor' },
+    { code: '7.1', row: 39, exportRow: 38, step: 7, text: 'Каждая товарная единица осмотрена со всех сторон', type: 'yesno' },
+    { code: '7.2', row: 40, exportRow: 39, step: 7, text: 'Единицы товара разложены по ячейкам с табличками в 1 слой', type: 'yesno' },
+    { code: '7.3', row: 41, exportRow: 40, step: 7, text: 'Единицы товара в ячейках соответствуют категории / табличке', type: 'yesno' },
+    { code: '7.4', row: 42, exportRow: 41, step: 7, text: 'Количество ошибок на качество', type: 'number', min: 0, unit: 'ошибок' },
+    { code: '7.5', row: 43, exportRow: 42, step: 7, text: 'Замер лимитирующих дефектов / калибра сделан корректно на камеру', type: 'yesno' },
+    { code: '8.0.1', row: 44, exportRow: 43, step: 8, text: 'Тара обнулена на весах', type: 'yesno', noTime: true },
+    { code: '8.0.2', row: 45, exportRow: 44, step: 8, text: 'Отобранные единицы для разрушающего контроля взвешаны — не менее 2% от выборки', type: 'yesno', noTime: true },
+    { code: '8.1', row: 46, exportRow: 45, step: 8, text: 'Разрушающий контроль сделан корректно — не менее 2% от общей выборки из категории качества', type: 'yesno' },
+    { code: '8.4', row: 47, exportRow: 46, step: 8, text: 'Замер плотности сделан корректно по инструкции и бизнес-процессу', type: 'yesno', feature: 'requiresDensity' },
+    { code: '8.5', row: 48, exportRow: 47, step: 8, text: 'Прибор плотности расположен на столе с единицей товара', type: 'yesno', feature: 'requiresDensity' },
+    { code: '8.7', row: 49, exportRow: 48, step: 8, text: 'Замер сахара Brix сделан корректно по инструкции и бизнес-процессу', type: 'yesno', feature: 'requiresBrix' },
+    { code: '8.8', row: 50, exportRow: 49, step: 8, text: 'Прибор Brix расположен на столе с единицей товара', type: 'yesno', feature: 'requiresBrix' },
+    { code: '9.1', row: 52, exportRow: 51, step: 9, text: 'Взвешена каждая категория товара в таре: брак, нестандарт, некалибр, осыпь', type: 'yesno' },
+    { code: '10.1', row: 53, exportRow: 52, step: 10, text: 'Очищен стол от выборки', type: 'yesno' },
   ];
 
   // Эти пункты в рабочем интерфейсе ДП фиксируются без тайм-кода.
   const QUESTIONS_WITHOUT_TIME = new Set([
-    '2.1','3.1','5.1','5.2','6.1','7.1','7.2','7.3','8.0.1','8.0.2','8.4','8.7'
+    '2.1','5.1','5.2','6.1','7.1','7.2','7.3','8.0.1','8.0.2','8.4','8.7'
   ]);
 
   const QUESTION_HINTS = {
@@ -102,11 +102,11 @@
       brixValues:'X', apmError:'AA', comment:'AB'
     },
     connectionTimeCell: 'D2',
-    reportEndCell: 'I75',
+    reportEndCell: 'I74',
     checklistNameRow: 23,
-    checklistCounterRow: 55,
+    checklistCounterRow: 54,
     sharedStepOneTimeRow: 26,
-    defectRows: { start: 66, end: 71, total: 72 },
+    defectRows: { start: 65, end: 70, total: 71 },
   });
 
   function excelColumnName(number) {

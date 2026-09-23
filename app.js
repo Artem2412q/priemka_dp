@@ -434,7 +434,7 @@
     requiresBrix: ['Brix', 'Добавляет контроль сахара Brix в чек-лист'],
   };
 
-  const QUESTIONS_WITHOUT_TIME = new Set(['2.1', '3.1', '5.1', '5.2', '6.1', '7.1', '7.2', '7.3', '8.0.1', '8.0.2', '8.4', '8.7']);
+  const QUESTIONS_WITHOUT_TIME = new Set(['2.1', '5.1', '5.2', '6.1', '7.1', '7.2', '7.3', '8.0.1', '8.0.2', '8.4', '8.7']);
   const GROUP_CHECKLIST_STEP_IDS = new Set([0, 1, 2]);
   // Время каждого шага выгружается строго в его собственную ячейку Excel.
   // Раньше время шагов 1.1/1.2 сводилось в строку 26 («Не контролируем данный шаг»),
@@ -445,7 +445,7 @@
   const defaultSku = () => ({
     id: globalThis.crypto?.randomUUID?.() || `sku-${Date.now()}-${Math.random()}`,
     code: '', name: '', vpt: '', sampleMass: '', defectMass: '', nonstandardMass: '', debrisMass: '', caliberMass: '',
-    brixValues: '', wasteLimit: '', apmError: 'no', comment: '', requiresColor: false, requiresDensity: false, requiresBrix: false,
+    brixValues: '', wasteLimit: '', apmError: 'no', comment: '', archiveUnitType: '', requiresColor: false, requiresDensity: false, requiresBrix: false,
     importMeta: null, checklist: {}, defects: [],
   });
 
@@ -841,6 +841,7 @@
       code: raw.code || '', name: raw.name || '', vpt: raw.vpt || '', sampleMass: raw.sampleMass ?? '',
       defectMass: raw.defectMass ?? '', nonstandardMass: raw.nonstandardMass ?? '', debrisMass: raw.debrisMass ?? '',
       caliberMass: raw.caliberMass ?? '', brixValues: normalizeBrixValues(raw.brixValues ?? '', true), wasteLimit: raw.wasteLimit ?? '', apmError: raw.apmError || 'no', comment: raw.comment || '',
+      archiveUnitType: ['piece', 'weight'].includes(raw.archiveUnitType) ? raw.archiveUnitType : '',
       requiresColor: Boolean(raw.requiresColor), requiresDensity: Boolean(raw.requiresDensity), requiresBrix: Boolean(raw.requiresBrix),
       importMeta: raw.importMeta && typeof raw.importMeta === 'object' ? raw.importMeta : null,
       checklist: raw.checklist && typeof raw.checklist === 'object' ? raw.checklist : {},
@@ -1528,7 +1529,7 @@
       ${selectField('Формат приёмки', 'shipment.format', s.format, [{ value: 'Онлайн', label: 'Онлайн' }, { value: 'Архив', label: 'Архив' }], true)}
       ${field('МОКК', 'shipment.mokk', s.mokk, 'text', { required: true, placeholder: 'ФИО или ID' })}
       ${field('ДП (ID)', 'shipment.dpId', s.dpId, 'text', { required: true, placeholder: 'ФИО / ID' })}
-    </div><div class="arm-operational-import"><div><span class="eyebrow">Быстрый старт</span><strong>Создать приёмку по заявке из Excel АРМ</strong><small>Онлайн переносит только реквизиты и товары. Архив дополнительно переносит фактические результаты и дефекты.</small></div><button type="button" class="button button-secondary" data-action="open-arm-import">Импорт из АРМ</button></div><div class="timer-grid shipment-timer-grid operational-timers">${timerCard('Время подключения', 'connectionTime', 'Переносится в Excel.', { required: true })}${timerCard('Начало приёмки', 'acceptanceStart', 'Начало фактической приёмки.', { required: true })}</div></div></section>`;
+    </div><div class="arm-operational-import"><div><span class="eyebrow">Быстрый старт</span><strong>Создать приёмку по заявке из Excel АРМ</strong><small>Онлайн переносит только реквизиты и товары. Архив дополнительно переносит фактические результаты и дефекты.</small></div><div class="button-row"><button type="button" class="button button-secondary" data-action="open-arm-import">Импорт из АРМ</button>${s.format === 'Архив' ? '<button type="button" class="button button-ghost" data-action="open-archive-timing">Прогрессивное время</button>' : ''}</div></div><div class="timer-grid shipment-timer-grid operational-timers">${timerCard('Время подключения', 'connectionTime', 'Переносится в Excel.', { required: true })}${timerCard('Начало приёмки', 'acceptanceStart', 'Начало фактической приёмки.', { required: true })}</div></div></section>`;
   }
 
   function renderOperationalProduct(sku, index) {
@@ -1786,6 +1787,7 @@
     rowId: ['id'], requestNumber: ['номер заявки', 'номер заявки / поставки', 'номер заявки/поставки'],
     date: ['дата проверки', 'дата приемки', 'дата приёмки'], rc: ['рц'], supplier: ['поставщик', 'ка'],
     code: ['код товара', 'код товара / sku', 'sku'], name: ['название товара', 'наименование товара'],
+    mokk: ['мокк', 'фио мокк', 'фио мокка', 'фио мокк сотрудника', 'менеджер окк', 'фио менеджера окк', 'менеджер отдела контроля качества', 'фио менеджера отдела контроля качества', 'сотрудник окк'],
     vpt: ['температура', 'впт', 'внутриплодная температура', 'температура продукта'], sampleMass: ['м выборки кг/шт', 'масса выборки', 'масса выборки кг/шт', 'м выборки', 'выборка кг/шт'],
     defectMass: ['м брака кг/шт', 'масса брака', 'масса брака кг/шт', 'м брака', 'брак масса кг/шт'], defectPercent: ['% брака', 'брак %'],
     nonstandardMass: ['нестандарт, масса кг/шт', 'нестандарт масса кг/шт', 'масса нестандарта', 'масса нестандарта кг/шт', 'м нестандарта'], nonstandardPercent: ['нестандарт %', '% нестандарта'],
@@ -1965,7 +1967,7 @@
     if (armImportWorker) return armImportWorker;
     if (!('Worker' in window) || location.protocol === 'file:') return null;
     try {
-      armImportWorker = new Worker('./arm-import-worker.js?v=68');
+      armImportWorker = new Worker('./arm-import-worker.js?v=69');
       armImportWorker.onmessage = event => {
         const message = event.data || {};
         const pending = armImportWorkerPending.get(message.id);
@@ -2014,7 +2016,13 @@
         const columns = {};
         Object.entries(ARM_IMPORT_FIELDS).forEach(([field, aliases]) => {
           const alias = aliases.map(armNormalizeHeader).find(item => headerMap.has(item));
-          columns[field] = alias ? headerMap.get(alias) : 0;
+          if (alias) { columns[field] = headerMap.get(alias); return; }
+          if (field === 'mokk') {
+            const fuzzy = [...headerMap.entries()].find(([header]) => header.includes('мокк') || (header.includes('менеджер') && header.includes('окк')));
+            columns[field] = fuzzy ? fuzzy[1] : 0;
+            return;
+          }
+          columns[field] = 0;
         });
         const requiredScore = required.filter(field => columns[field]).length;
         const optionalScore = Object.values(columns).filter(Boolean).length;
@@ -2079,6 +2087,7 @@
       if (rows.length > MAX_SKU) warnings.push(`В заявке ${rows.length} товарных позиций. Текущий Excel-чек-лист поддерживает максимум ${MAX_SKU}; импорт заблокирован, чтобы не потерять товары.`);
       if (armImportSession.mode === 'Архив') {
         warnings.push(...armArchiveMappingWarnings());
+        warnings.push(...armArchiveMokkWarnings(rows));
         rows.forEach((row, index) => warnings.push(...armPercentWarnings(row, index)));
       }
       armImportSession = { ...armImportSession, rows, warnings };
@@ -2088,6 +2097,29 @@
       armImportSession = { ...armImportSession, rows: [], warnings: [error?.message || String(error)] };
       renderArmImportModal();
     }
+  }
+
+  function armArchiveMokkCandidates(rows = armImportSession.rows || []) {
+    const seen = new Set();
+    const values = [];
+    rows.forEach(row => {
+      const value = armText(row?.mokk);
+      if (!value) return;
+      const key = value.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
+      if (seen.has(key)) return;
+      seen.add(key);
+      values.push(value);
+    });
+    return values;
+  }
+  function armArchiveMokkValue(rows = armImportSession.rows || []) { return armArchiveMokkCandidates(rows)[0] || ''; }
+  function armArchiveMokkWarnings(rows = armImportSession.rows || []) {
+    const values = armArchiveMokkCandidates(rows);
+    if (!rows.length) return [];
+    if (!armImportSession.summary?.availableFields?.mokk) return ['В файле АРМ не найдена колонка МОКК. ФИО можно указать вручную после импорта.'];
+    if (!values.length) return ['Колонка МОКК найдена, но по этой заявке ФИО не заполнено. Поле останется пустым.'];
+    if (values.length > 1) return [`В заявке найдено несколько значений МОКК (${values.join(', ')}). Автоматически будет подставлено первое: ${values[0]}.`];
+    return [];
   }
 
   function armPreviewField(label, value) { return `<div class="arm-preview-field"><span>${escapeHtml(label)}</span><strong>${escapeHtml(armText(value) || '—')}</strong></div>`; }
@@ -2137,7 +2169,7 @@
         <div class="field"><label>2. Номер заявки</label><input class="input" id="armImportRequest" type="text" value="${escapeAttr(armImportSession.requestNumber || '')}" placeholder="Например: 23000Y8888584" autocomplete="off"></div>
       </div>
       <div class="arm-import-file-state ${armImportSession.loaded ? 'is-ready' : armImportSession.loading ? 'is-loading' : ''}">${armImportSession.loading ? '<span class="spinner-mini"></span><strong>Читаем и индексируем файл…</strong>' : armImportSession.loaded ? `<strong>✓ Файл готов</strong><span>${armImportSession.summary?.rows || 0} строк · ${armImportSession.summary?.requests || 0} заявок · лист «${escapeHtml(armImportSession.summary?.sheetName || '')}»</span>` : '<strong>Файл ещё не загружен</strong><span>Excel обрабатывается локально и не отправляется на сервер.</span>'}</div>
-      ${rows.length ? `<section class="arm-preview"><div class="arm-preview-head"><div><span class="eyebrow">Найдена заявка</span><h3>${escapeHtml(armImportSession.requestNumber)}</h3></div><span class="viz-badge">${rows.length} товаров</span></div><div class="arm-preview-grid">${armPreviewField('РЦ', first.rc)}${armPreviewField('Дата приёмки', armDateInput(first.date))}${armPreviewField('Поставщик', first.supplier)}${armPreviewField('Формат', mode)}${armPreviewField('МОКК', '')}${armPreviewField('ДП (ID)', '')}</div><div class="arm-product-preview">${rows.map((row, index) => `<div><span>${index + 1}</span><strong>${escapeHtml(armText(row.name) || `Товар ${index + 1}`)}</strong><small>${escapeHtml(armText(row.code) || 'Код не указан')}</small>${mode === 'Архив' ? `<small class="arm-archive-values">${escapeHtml(armArchivePreviewValues(row))}</small>` : ''}</div>`).join('')}</div></section>` : ''}
+      ${rows.length ? `<section class="arm-preview"><div class="arm-preview-head"><div><span class="eyebrow">Найдена заявка</span><h3>${escapeHtml(armImportSession.requestNumber)}</h3></div><span class="viz-badge">${rows.length} товаров</span></div><div class="arm-preview-grid">${armPreviewField('РЦ', first.rc)}${armPreviewField('Дата приёмки', armDateInput(first.date))}${armPreviewField('Поставщик', first.supplier)}${armPreviewField('Формат', mode)}${armPreviewField('МОКК', mode === 'Архив' ? armArchiveMokkValue(rows) : '')}${armPreviewField('ДП (ID)', '')}</div><div class="arm-product-preview">${rows.map((row, index) => `<div><span>${index + 1}</span><strong>${escapeHtml(armText(row.name) || `Товар ${index + 1}`)}</strong><small>${escapeHtml(armText(row.code) || 'Код не указан')}</small>${mode === 'Архив' ? `<small class="arm-archive-values">${escapeHtml(armArchivePreviewValues(row))}</small>` : ''}</div>`).join('')}</div></section>` : ''}
       ${(armImportSession.warnings || []).length ? `<div class="issue-list arm-import-warnings">${armImportSession.warnings.map(warning => `<div class="issue ${tooMany || !rows.length ? 'error' : ''}">${escapeHtml(warning)}</div>`).join('')}</div>` : ''}
     </div>`;
     footer.innerHTML = `<button class="button button-ghost" id="armImportCancel" type="button">Отмена</button><button class="button button-secondary" id="armImportSearch" type="button" ${!armImportSession.loaded || armImportSession.loading ? 'disabled' : ''}>Найти заявку</button>${rows.length && !tooMany ? '<button class="button button-primary" id="armImportApply" type="button">Создать приёмку</button>' : ''}`;
@@ -2152,6 +2184,7 @@
       if (armImportSession.rows.length > MAX_SKU) warnings.push(`В заявке ${armImportSession.rows.length} товарных позиций. Текущий Excel-чек-лист поддерживает максимум ${MAX_SKU}; импорт заблокирован, чтобы не потерять товары.`);
       if (armImportSession.rows.length && armImportSession.mode === 'Архив') {
         warnings.push(...armArchiveMappingWarnings());
+        warnings.push(...armArchiveMokkWarnings(armImportSession.rows));
         armImportSession.rows.forEach((row, index) => warnings.push(...armPercentWarnings(row, index)));
       }
       armImportSession.warnings = warnings;
@@ -2174,6 +2207,7 @@
     const mode = armImportSession.mode === 'Архив' ? 'Архив' : 'Онлайн';
     const first = rows[0];
     const requestNumber = armImportSession.requestNumber;
+    const autoMokk = mode === 'Архив' ? armArchiveMokkValue(rows) : '';
     const importedSkus = rows.map(row => createSkuFromArmRow(row, mode, requestNumber));
     const oldUi = state.ui || {};
     state.shipment = {
@@ -2183,19 +2217,181 @@
       date: armDateInput(first.date),
       supplier: armText(first.supplier),
       format: mode,
-      mokk: '', dpId: '', connectionTime: '', acceptanceStart: '', acceptanceEnd: '', reportEnd: '',
+      mokk: autoMokk, dpId: '', connectionTime: '', acceptanceStart: '', acceptanceEnd: '', reportEnd: '',
     };
     state.skus = importedSkus.length ? importedSkus : [defaultSku()];
     state.groupChecklist = defaultGroupChecklist();
     state.notes = '';
     state.ui = { ...oldUi, page: 'shipment', currentSku: 0, checkStep: 0, checklistMode: 'group', defectSearch: '', defectSeverity: 'all', expandedCompletedSections: {} };
-    state.importMeta = { source: 'arm', mode, requestNumber, fileName: armImportSession.fileName, importedAt: new Date().toISOString(), rowCount: rows.length };
+    state.importMeta = { source: 'arm', mode, requestNumber, fileName: armImportSession.fileName, importedAt: new Date().toISOString(), rowCount: rows.length, autoMokk: autoMokk || '' };
     saveNow();
     closeModal();
     render();
     window.scrollTo({ top: 0, behavior: 'smooth' });
     const defectCount = state.skus.reduce((sum, sku) => sum + sku.defects.length, 0);
-    toast(mode === 'Архив' ? `Архив загружен: ${state.skus.length} товаров, ${defectCount} записей дефектов. Чек-лист и время не изменены.` : `Онлайн-приёмка создана: ${state.skus.length} товаров. Результаты контроля не импортировались.`, 'success', 7000);
+    toast(mode === 'Архив' ? `Архив загружен: ${state.skus.length} товаров, ${defectCount} записей дефектов.${autoMokk ? ` МОКК: ${autoMokk}.` : ''}` : `Онлайн-приёмка создана: ${state.skus.length} товаров. Результаты контроля не импортировались.`, 'success', 7000);
+    if (mode === 'Архив') setTimeout(() => showArchiveProgressiveTimingModal(), 120);
+  }
+
+  const ARCHIVE_PROGRESSIVE_COMMON = [
+    ['0.1', -30, 'ВПТ · за 30 минут до начала досмотра'],
+    ['1.1', 0, 'Акт ТМЦ / начало работы'],
+    ['1.2', 0.03, 'Таблички категорий'],
+    ['2.2', 0.08, 'Скотч и фотофиксация тары'],
+  ];
+  const ARCHIVE_PROGRESSIVE_SKU_POINTS = [
+    ['3.1', 0.025], ['3.3', 0.05], ['4.1', 0.15], ['5.3', 0.30], ['6.2', 0.42], ['7.4', 0.56],
+    ['7.5', 0.64], ['8.1', 0.75], ['8.5', 0.82], ['8.8', 0.87], ['9.1', 0.94], ['10.1', 1],
+  ];
+
+  function archiveTimeMinutes(value) {
+    const normalized = normalizeTimeText(value);
+    if (!normalized.valid || !normalized.value) return null;
+    const [hour, minute] = normalized.value.split(':').map(Number);
+    return hour * 60 + minute;
+  }
+  function archiveClock(minutes) {
+    const normalized = ((Math.round(minutes) % 1440) + 1440) % 1440;
+    return `${String(Math.floor(normalized / 60)).padStart(2, '0')}:${String(normalized % 60).padStart(2, '0')}`;
+  }
+  function archiveProgressiveDateTime(minutes) { return checklistDateTimeFromTime(archiveClock(minutes)); }
+  function buildArchiveProgressivePlan(startValue, cleanupValue) {
+    const start = archiveTimeMinutes(startValue);
+    let end = archiveTimeMinutes(cleanupValue);
+    if (start === null || end === null || start === end) return null;
+    const crossesMidnight = end < start;
+    if (crossesMidnight) end += 1440;
+    const duration = end - start;
+    if (duration <= 0) return null;
+    const common = {
+      '0.1': start - 30,
+      '1.1': start,
+      '1.2': start + duration * 0.03,
+      '2.2': start + duration * 0.08,
+    };
+    const skuStart = start + duration * 0.12;
+    const skuWindow = Math.max(0, end - skuStart);
+    const count = Math.max(1, state.skus.length);
+    const skus = state.skus.map((sku, index) => {
+      const segmentStart = skuStart + skuWindow * (index / count);
+      const segmentEnd = index === count - 1 ? end : skuStart + skuWindow * ((index + 1) / count);
+      const segmentDuration = Math.max(0, segmentEnd - segmentStart);
+      const times = { ...common };
+      ARCHIVE_PROGRESSIVE_SKU_POINTS.forEach(([code, ratio]) => {
+        times[code] = code === '10.1' ? segmentEnd : segmentStart + segmentDuration * ratio;
+      });
+      return { index, sku, segmentStart, segmentEnd, times };
+    });
+    return { start, end, duration, crossesMidnight, temperature: start - 30, common, skus };
+  }
+  function archiveProgressiveQuestionLabel(code) {
+    const question = QUESTIONS.find(item => item.code === code);
+    return question?.text || code;
+  }
+  function archiveProgressivePreviewHtml(plan) {
+    if (!plan) return '<div class="archive-timing-empty"><strong>Укажите два времени</strong><span>После этого появится ориентировочная раскладка по шагам.</span></div>';
+    const shortWindow = plan.duration < Math.max(20, state.skus.length * 12);
+    const commonRows = ['0.1', '1.1', '1.2', '2.2'].map(code => `<div class="archive-timing-row"><span>${escapeHtml(code)}</span><div><strong>${escapeHtml(archiveProgressiveQuestionLabel(code))}</strong><small>${code === '0.1' ? 'Отдельно: за 30 минут до досмотра' : 'Общая часть заявки'}</small></div><b>${escapeHtml(archiveClock(plan.common[code]))}</b></div>`).join('');
+    const skuRows = plan.skus.map(item => `<article class="archive-timing-sku"><header><div><span>${item.index + 1}</span><div><strong>${escapeHtml(getSkuLabel(item.sku, item.index))}</strong><small>${escapeHtml(archiveClock(item.segmentStart))} → ${escapeHtml(archiveClock(item.segmentEnd))}</small></div></div><b>${Math.max(0, Math.round(item.segmentEnd - item.segmentStart))} мин</b></header><div class="archive-timing-step-grid">${ARCHIVE_PROGRESSIVE_SKU_POINTS.map(([code]) => `<div><span>${escapeHtml(code)}</span><strong>${escapeHtml(archiveClock(item.times[code]))}</strong><small>${escapeHtml(STEP_GROUPS[QUESTIONS.find(q => q.code === code)?.step]?.short || '')}</small></div>`).join('')}</div></article>`).join('');
+    return `<div class="archive-timing-summary"><div><span>Замер ВПТ</span><strong>${escapeHtml(archiveClock(plan.temperature))}</strong></div><div><span>Начало досмотра</span><strong>${escapeHtml(archiveClock(plan.start))}</strong></div><div><span>Очистка стола</span><strong>${escapeHtml(archiveClock(plan.end))}</strong></div><div><span>Интервал</span><strong>${Math.round(plan.duration)} мин</strong></div></div>${plan.crossesMidnight ? '<div class="notice"><strong>Переход через полночь:</strong> время очистки считается следующим днём.</div>' : ''}${shortWindow ? '<div class="notice"><strong>Короткий интервал:</strong> некоторые ориентировочные отметки могут совпасть по минутам — их можно поправить вручную после применения.</div>' : ''}<section class="archive-timing-common"><span class="eyebrow">Общая часть</span>${commonRows}</section><section class="archive-timing-skus"><div class="archive-timing-section-head"><div><span class="eyebrow">По товарам</span><strong>Шаги 3–10 распределяются последовательно</strong></div><small>Последняя очистка стола всегда совпадает с указанным конечным временем.</small></div>${skuRows}</section>`;
+  }
+  const ARCHIVE_SCALE_CODES = new Set(['3.1', '3.3']);
+  function archiveUnitTypeLabel(value) { return value === 'piece' ? 'Штучная' : value === 'weight' ? 'Весовая' : 'Не выбрано'; }
+  function archiveUnitTypesFromModal() {
+    return state.skus.map((sku, index) => {
+      const select = document.querySelector(`[data-archive-unit-type="${index}"]`);
+      const value = select?.value || sku.archiveUnitType || '';
+      return ['piece', 'weight'].includes(value) ? value : '';
+    });
+  }
+  function archiveUnitTypeSelectorHtml() {
+    return `<section class="archive-unit-types"><div class="archive-timing-section-head"><div><span class="eyebrow">Тип позиции</span><strong>Укажите для каждого товара: штучная или весовая</strong></div><small>Это влияет на блок «Проверка весов»: для штучной позиции он не контролируется и остаётся без времени.</small></div><div class="archive-unit-grid">${state.skus.map((sku, index) => `<label class="archive-unit-card"><span><b>${index + 1}</b><strong>${escapeHtml(getSkuLabel(sku, index))}</strong></span><select class="input" data-archive-unit-type="${index}"><option value=""${!sku.archiveUnitType ? ' selected' : ''}>Выберите тип…</option><option value="piece"${sku.archiveUnitType === 'piece' ? ' selected' : ''}>Штучная</option><option value="weight"${sku.archiveUnitType === 'weight' ? ' selected' : ''}>Весовая</option></select></label>`).join('')}</div></section>`;
+  }
+  function applyArchiveAutomaticStatuses(plan, unitTypes) {
+    const stamp = new Date().toISOString();
+    if (!state.groupChecklist) state.groupChecklist = defaultGroupChecklist();
+    ensureGroupChecklistSelection();
+    groupQuestions().forEach(question => {
+      if (question.type !== 'yesno') return;
+      const current = getGroupAnswer(question.code);
+      const time = plan.common[question.code] !== undefined && questionAllowsTimeValue(question, { ...current, status: 'yes' })
+        ? archiveProgressiveDateTime(plan.common[question.code]) : '';
+      state.groupChecklist.answers[question.code] = { ...current, status: 'yes', time, comment: '' };
+    });
+    state.groupChecklist.appliedAt = stamp;
+    state.groupChecklist.appliedSkuIds = state.skus.map(sku => sku.id);
+    state.groupChecklist.selectedSkuIds = state.skus.map(sku => sku.id);
+    state.groupChecklist.selectionInitialized = true;
+
+    state.skus.forEach((sku, index) => {
+      sku.archiveUnitType = unitTypes[index];
+      const itemPlan = plan.skus[index];
+      QUESTIONS.forEach(question => {
+        if (!isApplicable(sku, question) || question.type !== 'yesno') return;
+        const current = getAnswer(sku, question.code);
+        const fromGroup = GROUP_CHECKLIST_STEP_IDS.has(question.step) ? state.groupChecklist.answers[question.code] : null;
+        if (fromGroup) {
+          sku.checklist[question.code] = { ...current, ...fromGroup, source: 'group', groupAppliedAt: stamp };
+          return;
+        }
+        const isPieceScale = unitTypes[index] === 'piece' && ARCHIVE_SCALE_CODES.has(question.code);
+        const status = isPieceScale ? 'na' : 'yes';
+        let time = '';
+        if (!isPieceScale && itemPlan?.times?.[question.code] !== undefined && questionAllowsTimeValue(question, { ...current, status })) {
+          time = archiveProgressiveDateTime(itemPlan.times[question.code]);
+        }
+        sku.checklist[question.code] = { ...current, status, time, comment: '' };
+      });
+    });
+  }
+  function refreshArchiveProgressiveTimingModal() {
+    const startInput = document.getElementById('archiveTimingStart');
+    const cleanupInput = document.getElementById('archiveTimingCleanup');
+    const preview = document.getElementById('archiveTimingPreview');
+    const apply = document.getElementById('archiveTimingApply');
+    if (!preview || !apply) return;
+    const plan = buildArchiveProgressivePlan(startInput?.value || '', cleanupInput?.value || '');
+    const unitTypes = archiveUnitTypesFromModal();
+    const missingTypes = unitTypes.filter(value => !value).length;
+    preview.innerHTML = archiveProgressivePreviewHtml(plan) + (missingTypes ? `<div class="notice"><strong>Выберите тип позиции:</strong> осталось ${missingTypes} товар${missingTypes === 1 ? '' : missingTypes < 5 ? 'а' : 'ов'}.</div>` : '<div class="notice notice-strong"><strong>Автозаполнение:</strong> применимые пункты будут отмечены «Выполнено». Для штучных позиций 3.1/3.3 станут «Не контролируется» без времени; для весовых — «Выполнено» с ориентировочным временем.</div>');
+    apply.disabled = !plan || missingTypes > 0;
+  }
+  function showArchiveProgressiveTimingModal() {
+    if (state.shipment.format !== 'Архив') return;
+    const body = document.getElementById('modalBody');
+    const footer = document.getElementById('modalFooter');
+    if (!body || !footer) return;
+    document.getElementById('modalTitle').textContent = 'Прогрессивное заполнение архива';
+    const existingStart = timeOnly(state.shipment.acceptanceStart);
+    const existingCleanup = timeOnly(state.shipment.acceptanceEnd);
+    body.innerHTML = `<div class="archive-timing-shell"><div class="notice notice-strong"><strong>Как это работает:</strong> укажите начало работы / досмотра, момент очистки стола и тип каждой позиции. Система распределит время и автоматически отметит применимые пункты как «Выполнено». ВПТ будет поставлен ровно за 30 минут до начала досмотра.</div><div class="archive-timing-inputs"><div class="field"><label>Начало работы / досмотра <span class="required">*</span></label><input class="input" id="archiveTimingStart" type="time" value="${escapeAttr(existingStart)}"><span class="field-hint">От этой точки начинается шаг 1. Подключение и ВПТ будут рассчитаны на −30 минут.</span></div><div class="field"><label>Очистка стола <span class="required">*</span></label><input class="input" id="archiveTimingCleanup" type="time" value="${escapeAttr(existingCleanup)}"><span class="field-hint">Финальная отметка шага 10. Если время меньше начального — считается следующим днём.</span></div></div><div class="archive-timing-mokk"><span>МОКК из АРМ</span><strong>${escapeHtml(state.shipment.mokk || 'не найден — заполните вручную')}</strong></div>${archiveUnitTypeSelectorHtml()}<div id="archiveTimingPreview">${archiveProgressivePreviewHtml(buildArchiveProgressivePlan(existingStart, existingCleanup))}</div></div>`;
+    footer.innerHTML = '<button class="button button-ghost" id="archiveTimingSkip" type="button">Оставить время вручную</button><button class="button button-primary" id="archiveTimingApply" type="button">Подставить ориентировочное время</button>';
+    modalBackdrop.hidden = false;
+    document.getElementById('archiveTimingSkip').onclick = closeModal;
+    const apply = document.getElementById('archiveTimingApply');
+    document.getElementById('archiveTimingStart')?.addEventListener('input', refreshArchiveProgressiveTimingModal);
+    document.getElementById('archiveTimingCleanup')?.addEventListener('input', refreshArchiveProgressiveTimingModal);
+    document.querySelectorAll('[data-archive-unit-type]').forEach(select => select.addEventListener('change', refreshArchiveProgressiveTimingModal));
+    apply.onclick = applyArchiveProgressiveTiming;
+    refreshArchiveProgressiveTimingModal();
+  }
+  function applyArchiveProgressiveTiming() {
+    const startValue = document.getElementById('archiveTimingStart')?.value || '';
+    const cleanupValue = document.getElementById('archiveTimingCleanup')?.value || '';
+    const plan = buildArchiveProgressivePlan(startValue, cleanupValue);
+    if (!plan) { toast('Укажите корректное начало работы и время очистки стола.', 'error', 5000); return; }
+    const unitTypes = archiveUnitTypesFromModal();
+    if (unitTypes.some(value => !value)) { toast('Укажите для каждой позиции: штучная она или весовая.', 'error', 5500); return; }
+    state.shipment.connectionTime = archiveProgressiveDateTime(plan.temperature);
+    state.shipment.acceptanceStart = archiveProgressiveDateTime(plan.start);
+    state.shipment.acceptanceEnd = archiveProgressiveDateTime(plan.end);
+    applyArchiveAutomaticStatuses(plan, unitTypes);
+    state.importMeta = { ...(state.importMeta || {}), progressiveTiming: { start: archiveClock(plan.start), cleanup: archiveClock(plan.end), temperature: archiveClock(plan.temperature), durationMinutes: Math.round(plan.duration), generatedAt: new Date().toISOString(), unitTypes: unitTypes.slice() } };
+    saveNow();
+    closeModal();
+    render();
+    updateDurationDisplays();
+    toast(`Архив заполнен автоматически: время распределено, пункты отмечены «Выполнено», а весы учтены по типу позиции. ВПТ — за 30 минут до досмотра.`, 'success', 7000);
   }
 
   function renderShipment() {
@@ -2229,7 +2425,7 @@
         ${timerCard('Начало приёмки', 'acceptanceStart', 'Можно зафиксировать отдельно от подключения.', { required: true })}
       </div>`,
     });
-    return `${pageHeading('Данные поставки', 'Заполненные разделы остаются открытыми. При необходимости их можно свернуть вручную.', '<div class="button-row"><button class="button button-ghost" type="button" data-action="open-arm-import">Импорт из АРМ</button><button class="button button-primary" data-page="products">К товарам →</button></div>')}
+    return `${pageHeading('Данные поставки', 'Заполненные разделы остаются открытыми. При необходимости их можно свернуть вручную.', `<div class="button-row"><button class="button button-ghost" type="button" data-action="open-arm-import">Импорт из АРМ</button>${s.format === 'Архив' ? '<button class="button button-secondary" type="button" data-action="open-archive-timing">Прогрессивное время</button>' : ''}<button class="button button-primary" data-page="products">К товарам →</button></div>`)}
       <div class="content-stack">
         <div class="notice notice-strong"><strong>Быстрый порядок:</strong> реквизиты → товары → чек-лист → дефекты → Excel. Поля сохраняются автоматически.</div>
         ${mainSection}
@@ -3129,6 +3325,7 @@
     if (!button) return;
     const action = button.dataset.action;
     if (action === 'open-arm-import') { openArmImportModal(); return; }
+    if (action === 'open-archive-timing') { showArchiveProgressiveTimingModal(); return; }
     if (action === 'smart-comment-suggestion') {
       const code = button.dataset.code; const value = button.dataset.commentValue || ''; const group = button.dataset.smartGroup === '1';
       if (group) {
@@ -3618,7 +3815,33 @@
     };
   }
 
-  function fillExactTemplateWorkbook(workbook, exportState) {
+  function excelTemplateLayout(exportType = 'new') {
+    if (exportType === 'old') {
+      return {
+        reportEndCell: 'I75', checklistCounterRow: 55, checklistMinRow: 56, checklistMaxRow: 57, checklistDurationRow: 58,
+        overallEndCell: 'K59', overallStartCell: 'K60', overallDurationCell: 'K61',
+        checkAndFillCell: 'I76', totalDurationCell: 'I77', defectStartRow: 66, defectEndRow: 71, defectTotalRow: 72,
+        checklistStatusEndRow: 53, checklistTimeRangeEndRow: 54, qualityCountRow: 42, qualityFlagRow: 41,
+        helperProcessRows: [25,26,27,28,29,30,31,32,33,34,35,37,38,39,40,41,43,46,47,48,49,50,52,53],
+      };
+    }
+    return {
+      reportEndCell: 'I74', checklistCounterRow: 54, checklistMinRow: 55, checklistMaxRow: 56, checklistDurationRow: 57,
+      overallEndCell: 'K58', overallStartCell: 'K59', overallDurationCell: 'K60',
+      checkAndFillCell: 'I75', totalDurationCell: 'I76', defectStartRow: 65, defectEndRow: 70, defectTotalRow: 71,
+      checklistStatusEndRow: 52, checklistTimeRangeEndRow: 53, qualityCountRow: 41, qualityFlagRow: 40,
+      helperProcessRows: [25,26,27,28,29,30,31,32,33,34,36,37,38,39,40,42,45,46,47,48,49,51,52],
+    };
+  }
+
+  function excelQuestionRow(question, exportType = 'new') {
+    if (!question) return null;
+    if (exportType === 'old') return question.row;
+    if (question.code === '1.2') return null; // пункт удалён из шаблона 09.09.2026
+    return question.row >= 29 ? question.row - 1 : question.row;
+  }
+
+  function fillExactTemplateWorkbook(workbook, exportState, exportType = 'new') {
     const ws = workbook.getWorksheet('Чек лист_ДП_Отчет') || workbook.worksheets[0];
     if (!ws) throw new Error('Не найден основной лист шаблона.');
     // Верхняя таблица V3 должна всегда показывать все 12 товарных позиций.
@@ -3635,6 +3858,7 @@
     workbook.modified = new Date();
     workbook.calcProperties.fullCalcOnLoad = true; workbook.calcProperties.forceFullCalc = true; workbook.calcProperties.calcMode = 'auto';
     const s = exportState.shipment || {};
+    const layout = excelTemplateLayout(exportType);
     const connectionStart = excelSerialFromInput(s.connectionTime || s.acceptanceStart);
     let acceptanceStart = excelSerialFromInput(s.acceptanceStart || s.connectionTime);
     let acceptanceEnd = excelSerialFromInput(s.acceptanceEnd);
@@ -3644,11 +3868,15 @@
     const reportAnchor = acceptanceEnd ?? acceptanceStart ?? connectionStart;
     if (reportAnchor !== null && reportEnd !== null) while (reportEnd < reportAnchor) reportEnd += 1;
     ws.getCell('D2').value = connectionStart ?? null; if (connectionStart !== null) ws.getCell('D2').numFmt = 'hh:mm';
-    ws.getCell('I75').value = reportEnd ?? null; if (reportEnd !== null) ws.getCell('I75').numFmt = 'hh:mm';
+    ws.getCell(layout.reportEndCell).value = reportEnd ?? null; if (reportEnd !== null) ws.getCell(layout.reportEndCell).numFmt = 'hh:mm';
 
     const summaryColumns = ['C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','X','AA','AB'];
     const allChecklistTimes = [];
     const blocks = Array.from({ length: MAX_SKU }, (_, index) => skuExcelBlock(index));
+    blocks.forEach(block => {
+      const helperCell = ws.getCell(`${block.helper}${layout.checklistMinRow}`);
+      helperCell.value = { formula: layout.helperProcessRows.map(r => `${block.helper}${r}`).join('+'), result: 0 };
+    });
 
     for (let i = 0; i < MAX_SKU; i++) {
       const row = 5 + i; const sku = exportState.skus?.[i]; const block = blocks[i];
@@ -3659,9 +3887,11 @@
 
       const stepOneTimes = [];
       const skuTimes = [];
-      let lastSkuTime = acceptanceStart ?? connectionStart;
+      let lastSkuTime = connectionStart ?? acceptanceStart;
       QUESTIONS.forEach(q => {
-        const statusCell = ws.getCell(`${block.status}${q.row}`); const timeCell = ws.getCell(`${block.time}${q.row}`); const commentCell = ws.getCell(`${block.comment}${q.row}`);
+        const qRow = excelQuestionRow(q, exportType);
+        if (!qRow) return;
+        const statusCell = ws.getCell(`${block.status}${qRow}`); const timeCell = ws.getCell(`${block.time}${qRow}`); const commentCell = ws.getCell(`${block.comment}${qRow}`);
         if (!sku) { statusCell.value = null; timeCell.value = null; commentCell.value = null; return; }
         const answer = sku.checklist?.[q.code] || {}; const applicable = isApplicable(sku, q); const skipped = !applicable || answer.status === 'na';
         statusCell.value = q.type === 'number' ? (numberOrBlank(answer.value) === '' ? null : numberOrBlank(answer.value)) : (skipped ? null : localizedStatus(answer.status));
@@ -3675,33 +3905,33 @@
         if (dt !== null) { skuTimes.push(dt); allChecklistTimes.push(dt); }
         commentCell.value = applicable && !skipped ? (answer.comment || null) : null;
       });
-      const answeredCount = QUESTIONS.filter(q => q.row >= 27 && q.row <= 53).reduce((sum, q) => {
+      const answeredCount = QUESTIONS.filter(q => { const r = excelQuestionRow(q, exportType); return r !== null && r >= 27 && r <= layout.checklistStatusEndRow; }).reduce((sum, q) => {
         if (!sku || !isApplicable(sku, q)) return sum;
         const a = sku.checklist?.[q.code] || {};
         const value = q.type === 'number' ? numberOrBlank(a.value) : (a.status === 'na' ? '' : localizedStatus(a.status));
         return sum + Number(value !== '' && value !== null && value !== undefined);
       }, 0);
-      ws.getCell(`${block.status}55`).value = { formula: `COUNTA(${block.status}27:${block.status}53)`, result: answeredCount };
+      ws.getCell(`${block.status}${layout.checklistCounterRow}`).value = { formula: `COUNTA(${block.status}27:${block.status}${layout.checklistStatusEndRow})`, result: answeredCount };
       if (skuTimes.length) {
         const minTime = Math.min(...skuTimes); let maxTime = Math.max(...skuTimes); while (maxTime < minTime) maxTime += 1;
-        ws.getCell(`${block.time}56`).value = { formula: `IF(${block.status}$55>0,MIN(${block.time}$25:${block.time}$54),"")`, result: minTime };
-        ws.getCell(`${block.time}57`).value = { formula: `IF(${block.status}$55>0,MAX(${block.time}$25:${block.time}$54),"")`, result: maxTime };
-        ws.getCell(`${block.time}58`).value = { formula: `IF(OR(${block.status}55=0,${block.time}56="",${block.time}57=""),"",${block.time}57-${block.time}56)`, result: maxTime - minTime };
-        ws.getCell(`${block.time}56`).numFmt = 'hh:mm'; ws.getCell(`${block.time}57`).numFmt = 'hh:mm'; ws.getCell(`${block.time}58`).numFmt = '[h]:mm';
+        ws.getCell(`${block.time}${layout.checklistMinRow}`).value = { formula: `IF(${block.status}$${layout.checklistCounterRow}>0,MIN(${block.time}$25:${block.time}$${layout.checklistTimeRangeEndRow}),"")`, result: minTime };
+        ws.getCell(`${block.time}${layout.checklistMaxRow}`).value = { formula: `IF(${block.status}$${layout.checklistCounterRow}>0,MAX(${block.time}$25:${block.time}$${layout.checklistTimeRangeEndRow}),"")`, result: maxTime };
+        ws.getCell(`${block.time}${layout.checklistDurationRow}`).value = { formula: `IF(OR(${block.status}${layout.checklistCounterRow}=0,${block.time}${layout.checklistMinRow}="",${block.time}${layout.checklistMaxRow}=""),"",${block.time}${layout.checklistMaxRow}-${block.time}${layout.checklistMinRow})`, result: maxTime - minTime };
+        ws.getCell(`${block.time}${layout.checklistMinRow}`).numFmt = 'hh:mm'; ws.getCell(`${block.time}${layout.checklistMaxRow}`).numFmt = 'hh:mm'; ws.getCell(`${block.time}${layout.checklistDurationRow}`).numFmt = '[h]:mm';
       }
 
       let defectTotal = 0;
       for (let d = 0; d < MAX_DEFECTS; d++) {
-        const target = 66 + d; const defect = sku?.defects?.[d]; const count = defect ? numberOrBlank(defect.count) : '';
+        const target = layout.defectStartRow + d; const defect = sku?.defects?.[d]; const count = defect ? numberOrBlank(defect.count) : '';
         ws.getCell(`${block.defectType}${target}`).value = defectTypeForExport(defect) || null;
         ws.getCell(`${block.defectVisual}${target}`).value = localizedVisual(defect?.visual) || null;
         ws.getCell(`${block.defectCount}${target}`).value = count === '' ? null : count;
         ws.getCell(`${block.defectComment}${target}`).value = defect?.comment || null;
         if (count !== '') defectTotal += Number(count) || 0;
       }
-      ws.getCell(`${block.defectCount}72`).value = { formula: `SUM(${block.defectCount}66:${block.defectCount}71)`, result: defectTotal };
+      ws.getCell(`${block.defectCount}${layout.defectTotalRow}`).value = { formula: `SUM(${block.defectCount}${layout.defectStartRow}:${block.defectCount}${layout.defectEndRow})`, result: defectTotal };
       const characteristicText = (sku?.defects || []).slice(0, MAX_DEFECTS).map(defectTypeForExport).filter(Boolean).join(', ');
-      ws.getCell(`Y${row}`).value = sku ? { formula: `_xlfn.TEXTJOIN(", ",TRUE,${block.defectType}66:${block.time}71)`, result: characteristicText } : null;
+      ws.getCell(`Y${row}`).value = sku ? { formula: `_xlfn.TEXTJOIN(", ",TRUE,${block.defectType}${layout.defectStartRow}:${block.time}${layout.defectEndRow})`, result: characteristicText } : null;
 
       if (sku) {
         const sample = numeric(sku.sampleMass);
@@ -3712,10 +3942,12 @@
         const processNo = processCodes.reduce((sum, q) => sum + Number(isApplicable(sku, q) && (sku.checklist?.[q.code]?.status === 'no')), 0);
         const qualityCount = numeric(sku.checklist?.['7.4']?.value) + Number(sku.checklist?.['7.3']?.status === 'no');
         ws.getCell(`AD${row}`).value = { formula: `IF(AA${row}="да",1,0)`, result: apmCount };
-        ws.getCell(`AE${row}`).value = { formula: `${block.helper}56+AD${row}`, result: processNo + apmCount };
-        ws.getCell(`AF${row}`).value = { formula: `${block.status}42+${block.helper}41`, result: qualityCount };
+        ws.getCell(`AE${row}`).value = { formula: `${block.helper}${layout.checklistMinRow}+AD${row}`, result: processNo + apmCount };
+        ws.getCell(`AF${row}`).value = { formula: `${block.status}${layout.qualityCountRow}+${block.helper}${layout.qualityFlagRow}`, result: qualityCount };
         ws.getCell(`AG${row}`).value = { formula: `IF((AE${row}+AF${row})>0,1,0)`, result: processNo + apmCount + qualityCount > 0 ? 1 : 0 };
-        if (skuTimes.length) ws.getCell(`AH${row}`).value = { formula: `IF(OR(G${row}="",${block.time}58=""),"",${block.time}58)`, result: Math.max(...skuTimes) - Math.min(...skuTimes) };
+        if (skuTimes.length) ws.getCell(`AH${row}`).value = { formula: `IF(OR(G${row}="",${block.time}${layout.checklistDurationRow}=""),"",${block.time}${layout.checklistDurationRow})`, result: Math.max(...skuTimes) - Math.min(...skuTimes) };
+      } else {
+        ['AD','AE','AF','AG','AH','AI'].forEach(col => { ws.getCell(`${col}${row}`).value = null; });
       }
     }
 
@@ -3728,18 +3960,18 @@
     const acceptanceDuration = acceptanceStart !== null && acceptanceEnd !== null ? acceptanceEnd - acceptanceStart : null;
     const checkAndFillDuration = connectionStart !== null && reportEnd !== null ? reportEnd - connectionStart : null;
     const totalDuration = checkAndFillDuration !== null && acceptanceDuration !== null ? checkAndFillDuration + acceptanceDuration : null;
-    const statusSumExpr = blocks.map(block => `${block.status}55`).join(',');
-    ws.getCell('K59').value = { formula: `IF(SUM(${statusSumExpr})=0,"",MAX(K57:CJ57))`, result: acceptanceEnd };
-    ws.getCell('K60').value = { formula: `IF(SUM(${statusSumExpr})=0,"",MIN(K56:CJ56))`, result: acceptanceStart };
-    ws.getCell('K61').value = { formula: `IF(OR(SUM(${statusSumExpr})=0,K60="",K59=""),"",K59-K60)`, result: acceptanceDuration };
-    ws.getCell('K59').numFmt = 'hh:mm'; ws.getCell('K60').numFmt = 'hh:mm'; ws.getCell('K61').numFmt = '[h]:mm';
-    ws.getCell('I76').value = { formula: 'IF(OR(D2="",I75=""),"",I75-D2)', result: checkAndFillDuration };
-    ws.getCell('I77').value = { formula: `IF(OR(SUM(${statusSumExpr})=0,I76="",K61=""),"",I76+K61)`, result: totalDuration };
-    ws.getCell('I76').numFmt = '[h]:mm'; ws.getCell('I77').numFmt = '[h]:mm';
+    const statusSumExpr = blocks.map(block => `${block.status}${layout.checklistCounterRow}`).join(',');
+    ws.getCell(layout.overallEndCell).value = { formula: `IF(SUM(${statusSumExpr})=0,"",MAX(K${layout.checklistMaxRow}:CJ${layout.checklistMaxRow}))`, result: acceptanceEnd };
+    ws.getCell(layout.overallStartCell).value = { formula: `IF(SUM(${statusSumExpr})=0,"",MIN(K${layout.checklistMinRow}:CJ${layout.checklistMinRow}))`, result: acceptanceStart };
+    ws.getCell(layout.overallDurationCell).value = { formula: `IF(OR(SUM(${statusSumExpr})=0,${layout.overallStartCell}="",${layout.overallEndCell}=""),"",${layout.overallEndCell}-${layout.overallStartCell})`, result: acceptanceDuration };
+    ws.getCell(layout.overallEndCell).numFmt = 'hh:mm'; ws.getCell(layout.overallStartCell).numFmt = 'hh:mm'; ws.getCell(layout.overallDurationCell).numFmt = '[h]:mm';
+    ws.getCell(layout.checkAndFillCell).value = { formula: `IF(OR(D2="",${layout.reportEndCell}=""),"",${layout.reportEndCell}-D2)`, result: checkAndFillDuration };
+    ws.getCell(layout.totalDurationCell).value = { formula: `IF(OR(SUM(${statusSumExpr})=0,${layout.checkAndFillCell}="",${layout.overallDurationCell}=""),"",${layout.checkAndFillCell}+${layout.overallDurationCell})`, result: totalDuration };
+    ws.getCell(layout.checkAndFillCell).numFmt = '[h]:mm'; ws.getCell(layout.totalDurationCell).numFmt = '[h]:mm';
     const reportDuration = acceptanceEnd !== null && reportEnd !== null ? reportEnd - acceptanceEnd : null;
     for (let i = 0; i < MAX_SKU; i++) {
       const row = 5 + i; const block = blocks[i];
-      ws.getCell(`AI${row}`).value = exportState.skus?.[i] && reportDuration !== null ? { formula: `IF(OR(G${row}="",$I$75="",$K$59=""),"",$I$75-$K$59)`, result: reportDuration } : null;
+      ws.getCell(`AI${row}`).value = exportState.skus?.[i] && reportDuration !== null ? { formula: `IF(OR(G${row}="",${layout.reportEndCell}="",${layout.overallEndCell}=""),"",${layout.reportEndCell}-${layout.overallEndCell})`, result: reportDuration } : null;
     }
   }
 
@@ -3771,7 +4003,7 @@
     await promiseWithTimeout(workbook.xlsx.load(base64ToArrayBuffer(templateBase64)), 18000, 'Не удалось открыть Excel-шаблон.');
     if (exportCancelled) return;
     setExportLoading(true, 'Заполняем данные, чек-лист и дефекты…', 62);
-    fillExactTemplateWorkbook(workbook, exportState);
+    fillExactTemplateWorkbook(workbook, exportState, exportType);
     setExportLoading(true, 'Сохраняем таблицу…', 84);
     const out = await promiseWithTimeout(workbook.xlsx.writeBuffer(), 25000, 'Превышено время сохранения Excel.');
     if (exportCancelled) return;

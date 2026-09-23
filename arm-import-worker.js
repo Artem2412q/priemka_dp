@@ -11,6 +11,7 @@ const FIELD_ALIASES = {
   supplier: ['поставщик', 'ка'],
   code: ['код товара', 'код товара / sku', 'sku'],
   name: ['название товара', 'наименование товара'],
+  mokk: ['мокк', 'фио мокк', 'фио мокка', 'фио мокк сотрудника', 'менеджер окк', 'фио менеджера окк', 'менеджер отдела контроля качества', 'фио менеджера отдела контроля качества', 'сотрудник окк'],
   vpt: ['температура', 'впт', 'внутриплодная температура', 'температура продукта'],
   sampleMass: ['м выборки кг/шт', 'масса выборки', 'масса выборки кг/шт', 'м выборки', 'выборка кг/шт'],
   defectMass: ['м брака кг/шт', 'масса брака', 'масса брака кг/шт', 'м брака', 'брак масса кг/шт'],
@@ -73,7 +74,13 @@ function buildColumnMap(worksheet) {
     const columns = {};
     Object.entries(FIELD_ALIASES).forEach(([field, aliases]) => {
       const match = aliases.map(normalizeHeader).find(alias => normalizedToColumn.has(alias));
-      columns[field] = match ? normalizedToColumn.get(match) : 0;
+      if (match) { columns[field] = normalizedToColumn.get(match); return; }
+      if (field === 'mokk') {
+        const fuzzy = [...normalizedToColumn.entries()].find(([header]) => header.includes('мокк') || (header.includes('менеджер') && header.includes('окк')));
+        columns[field] = fuzzy ? fuzzy[1] : 0;
+        return;
+      }
+      columns[field] = 0;
     });
     const requiredScore = required.filter(field => columns[field]).length;
     const optionalScore = Object.values(columns).filter(Boolean).length;
