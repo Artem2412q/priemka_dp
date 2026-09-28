@@ -1,17 +1,30 @@
 (() => {
   'use strict';
 
-  const STORAGE_KEY = 'magnit-dp-workspace-v26';
-  const LEGACY_KEYS = ['magnit-dp-manual-v21', 'magnit-dp-manual-v20', 'magnit-dp-manual-v19', 'magnit-dp-manual-v18', 'magnit-dp-manual-v17', 'magnit-dp-state-v14', 'magnit-dp-state-v13', 'magnit-dp-state-v12'];
+  const STORAGE_KEY = 'magnit-dp-workspace-v30';
+  const LEGACY_KEYS = ['magnit-dp-workspace-v26', 'magnit-dp-manual-v21', 'magnit-dp-manual-v20', 'magnit-dp-manual-v19', 'magnit-dp-manual-v18', 'magnit-dp-manual-v17', 'magnit-dp-state-v14', 'magnit-dp-state-v13', 'magnit-dp-state-v12'];
   const MAX_SKU = 12;
-  const MAX_CHECKLISTS = 5;
+  const MAX_CHECKLISTS = 30;
   const MAX_DEFECTS = 6;
-  const AUTH_SESSION_KEY = 'magnit-dp-auth-v26';
-  const AUTH_USER_B64 = 'bWFnbml0X2Rw';
-  const AUTH_PASS_B64 = 'MTUwMjkxODQ=';
-  const POLICY_VERSION = '1.0';
+  const AUTH_SESSION_KEY = 'magnit-dp-user-session-v30';
+  const SHIFT_LOG_KEY = 'magnit-dp-shift-log-v1';
+  const POLICY_VERSION = '2.0';
   const POLICY_ACCEPTANCE_KEY = 'magnit-dp-policy-consent-v1';
   const POLICY_SESSION_KEY = 'magnit-dp-policy-consent-session-v1';
+
+  function readUserSession() {
+    try {
+      const raw = sessionStorage.getItem(AUTH_SESSION_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      const dpId = String(parsed?.dpId || '').trim();
+      const workDate = String(parsed?.workDate || '').trim();
+      return dpId && /^\d{4}-\d{2}-\d{2}$/.test(workDate) ? { dpId, workDate, startedAt: parsed.startedAt || new Date().toISOString() } : null;
+    } catch (_) { return null; }
+  }
+  function writeUserSession(user) { try { sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(user)); } catch (_) {} }
+  function clearUserSession() { try { sessionStorage.removeItem(AUTH_SESSION_KEY); } catch (_) {} }
+  let currentUser = readUserSession();
 
   const STEP_GROUPS = [
     { id: 0, title: 'Замер ВПТ', short: 'ВПТ', description: 'Фиксация фотографии и внутриплодной температуры.' },
@@ -308,6 +321,7 @@
     checklist: ['Этап 3 из 5', 'Пошаговый чек-лист'],
     defects: ['Этап 4 из 5', 'Дефекты и некалибр'],
     summary: ['Этап 5 из 5', 'Итоги и выгрузка'],
+    shift: ['Рабочий день', 'Моя смена'],
   };
   const PAGE_ORDER = Object.keys(PAGE_META);
   const RC_OPTIONS = [{"name":"РЦ Славянск-на-Кубани","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Тула","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Челябинск BTR","timeZone":"Asia/Yekaterinburg","mskOffset":2},{"name":"РЦ Ярославль","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Астрахань Тинаки","timeZone":"Europe/Astrakhan","mskOffset":1},{"name":"РЦ Ижевск","timeZone":"Europe/Samara","mskOffset":1},{"name":"РЦ Тольятти (новый)","timeZone":"Europe/Samara","mskOffset":1},{"name":"РЦ Ростов-на-Дону","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Воронеж","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Шушары (а)","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Кропоткин","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Дзержинск","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Краснодар Индустриальный","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Орел (Хардиково)","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Омск","timeZone":"Asia/Omsk","mskOffset":3},{"name":"РЦ Сургут","timeZone":"Asia/Yekaterinburg","mskOffset":2},{"name":"РЦ Тамбов","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Кемерово","timeZone":"Asia/Novokuznetsk","mskOffset":4},{"name":"РЦ Новосибирск Садовый (новый)","timeZone":"Asia/Novosibirsk","mskOffset":4},{"name":"РЦ Пермь","timeZone":"Asia/Yekaterinburg","mskOffset":2},{"name":"РЦ Оренбург Ленина","timeZone":"Asia/Yekaterinburg","mskOffset":2},{"name":"РЦ Тюмень","timeZone":"Asia/Yekaterinburg","mskOffset":2},{"name":"РЦ Смоленск","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Ерзовка","timeZone":"Europe/Volgograd","mskOffset":0},{"name":"РЦ Мурманск","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Киров","timeZone":"Europe/Kirov","mskOffset":0},{"name":"РЦ Иваново","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Лермонтов","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Москва Восток BTR","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Первоуральск","timeZone":"Asia/Yekaterinburg","mskOffset":2},{"name":"РЦ Пенза","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Стерлитамак","timeZone":"Asia/Yekaterinburg","mskOffset":2},{"name":"РЦ Колпино","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Шахты","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Энгельс","timeZone":"Europe/Saratov","mskOffset":1},{"name":"РЦ Великий Новгород","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Дмитров","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Зеленодольск","timeZone":"Europe/Moscow","mskOffset":0},{"name":"РЦ Коломна","timeZone":"Europe/Moscow","mskOffset":0}];
@@ -457,7 +471,7 @@
     id: globalThis.crypto?.randomUUID?.() || `checklist-${Date.now()}-${Math.random()}`,
     version: 25,
     shipment: {
-      id: '', rc: '', date: todayInput(), supplier: '', format: 'Онлайн', mokk: '', dpId: '',
+      id: '', rc: '', date: todayInput(), supplier: '', format: 'Онлайн', mokk: '', dpId: currentUser?.dpId || '',
       connectionTime: '', acceptanceStart: '', acceptanceEnd: '', reportEnd: '',
     },
     skus: [defaultSku()],
@@ -496,11 +510,7 @@
   const privacyConsentBlock = document.getElementById('privacyConsentBlock');
   const privacyConsent = document.getElementById('privacyConsent');
   const loginSubmit = document.getElementById('loginSubmit');
-  let authenticated = sessionStorage.getItem(AUTH_SESSION_KEY) === '1';
-
-  function decodeBase64(value) {
-    try { return atob(value); } catch (_) { return ''; }
-  }
+  let authenticated = Boolean(currentUser?.dpId);
 
   function readPolicyAcceptance() {
     try {
@@ -508,134 +518,157 @@
       const value = raw ? JSON.parse(raw) : null;
       if (value?.version === POLICY_VERSION && value?.accepted === true) return value;
     } catch (_) {}
-    try {
-      if (sessionStorage.getItem(POLICY_SESSION_KEY) === POLICY_VERSION) {
-        return { version: POLICY_VERSION, accepted: true, sessionOnly: true };
-      }
-    } catch (_) {}
+    try { if (sessionStorage.getItem(POLICY_SESSION_KEY) === POLICY_VERSION) return { version: POLICY_VERSION, accepted: true, sessionOnly: true }; } catch (_) {}
     return null;
   }
-
-  function hasAcceptedPolicy() {
-    return Boolean(readPolicyAcceptance());
+  function hasAcceptedPolicy() { return Boolean(readPolicyAcceptance()); }
+  function savePolicyAcceptance(dpId) {
+    const record = { accepted: true, version: POLICY_VERSION, acceptedAt: new Date().toISOString(), dpId: String(dpId || '').trim(), storage: 'local-browser' };
+    try { localStorage.setItem(POLICY_ACCEPTANCE_KEY, JSON.stringify(record)); return record; }
+    catch (_) { try { sessionStorage.setItem(POLICY_SESSION_KEY, POLICY_VERSION); } catch (_) {} return { ...record, sessionOnly: true }; }
   }
-
-  function savePolicyAcceptance(login) {
-    const record = {
-      accepted: true,
-      version: POLICY_VERSION,
-      acceptedAt: new Date().toISOString(),
-      login: String(login || '').trim(),
-      storage: 'local-browser',
-    };
-    try {
-      localStorage.setItem(POLICY_ACCEPTANCE_KEY, JSON.stringify(record));
-      return record;
-    } catch (_) {
-      try { sessionStorage.setItem(POLICY_SESSION_KEY, POLICY_VERSION); } catch (_) {}
-      return { ...record, sessionOnly: true };
-    }
-  }
-
   function updatePolicyConsentUI() {
     const accepted = hasAcceptedPolicy();
     if (privacyConsentBlock) privacyConsentBlock.hidden = accepted;
-    if (privacyConsent) {
-      privacyConsent.checked = accepted;
-      privacyConsent.required = !accepted;
-    }
+    if (privacyConsent) { privacyConsent.checked = accepted; privacyConsent.required = !accepted; }
     if (loginSubmit) loginSubmit.disabled = !accepted && !privacyConsent?.checked;
     return accepted;
   }
-
-  function setAuthenticated(isAuth) {
-    authenticated = Boolean(isAuth);
-    sessionStorage.setItem(AUTH_SESSION_KEY, authenticated ? '1' : '0');
-    document.body.classList.toggle('auth-locked', !authenticated);
-    loginOverlay.hidden = authenticated;
-    appShell.hidden = !authenticated;
-    if (mobileNav) mobileNav.hidden = !authenticated;
-    if (!authenticated) {
-      notesPanel.classList.remove('open');
-      modalBackdrop.hidden = true;
-      loadingOverlay.hidden = true;
-    }
-    if (authenticated) {
-      render();
-      updateNotesPanel();
-      scheduleAmbientBrandPosition();
-    }
+  function applyCurrentUserToWorkspace() {
+    if (!currentUser?.dpId || !workspace?.checklists) return;
+    workspace.checklists.forEach(item => {
+      item.shipment = item.shipment || {};
+      item.shipment.dpId = currentUser.dpId;
+      if (!item.shipment.date) item.shipment.date = currentUser.workDate || todayInput();
+    });
+    if (state?.shipment) state.shipment.dpId = currentUser.dpId;
+    try { persistWorkspace(); } catch (_) {}
   }
-
+  function updateCurrentUserUI() {
+    const label = document.getElementById('currentDpId');
+    if (label) label.textContent = currentUser?.dpId || '—';
+    const shiftMetric = document.getElementById('navMetricShift');
+    const shiftState = document.getElementById('navCheckShift');
+    const shift = getCurrentShift(false);
+    if (shiftMetric) shiftMetric.textContent = currentUser ? `${shift?.entries?.length || 0} чек-листов` : 'журнал дня';
+    if (shiftState) shiftState.textContent = shift?.ended ? '✓' : (currentUser ? '•' : '—');
+  }
+  function setAuthenticated(isAuth) {
+    authenticated = Boolean(isAuth && currentUser?.dpId);
+    document.body.classList.toggle('auth-locked', !authenticated);
+    loginOverlay.hidden = authenticated; appShell.hidden = !authenticated;
+    if (mobileNav) mobileNav.hidden = !authenticated;
+    if (!authenticated) { notesPanel.classList.remove('open'); modalBackdrop.hidden = true; loadingOverlay.hidden = true; }
+    else { applyCurrentUserToWorkspace(); render(); updateNotesPanel(); updateCurrentUserUI(); scheduleAmbientBrandPosition(); }
+  }
   function handleLoginSubmit(event) {
     event.preventDefault();
-    const userInput = document.getElementById('loginUsername');
-    const passInput = document.getElementById('loginPassword');
+    const idInput = document.getElementById('loginDpId');
+    const dateInput = document.getElementById('loginWorkDate');
     const errorEl = document.getElementById('loginError');
-    const login = (userInput?.value || '').trim();
-    const password = passInput?.value || '';
+    const dpId = String(idInput?.value || '').trim();
+    const workDate = String(dateInput?.value || '').trim();
     const policyAlreadyAccepted = hasAcceptedPolicy();
-    if (!policyAlreadyAccepted && !privacyConsent?.checked) {
-      if (errorEl) errorEl.textContent = 'Для первого входа необходимо принять политику использования и ответственности.';
-      privacyConsent?.focus();
-      return;
-    }
-    const loginOk = login === decodeBase64(AUTH_USER_B64);
-    const passOk = password === decodeBase64(AUTH_PASS_B64);
-    if (!loginOk || !passOk) {
-      if (errorEl) errorEl.textContent = 'Неверный логин или пароль.';
-      passInput?.focus();
-      passInput?.select?.();
-      return;
-    }
-    if (!policyAlreadyAccepted) savePolicyAcceptance(login);
-    updatePolicyConsentUI();
-    if (errorEl) errorEl.textContent = '';
-    if (userInput) userInput.value = '';
-    if (passInput) passInput.value = '';
-    setAuthenticated(true);
-    toast('Авторизация выполнена. Условия использования приняты.', 'success');
+    if (!dpId) { if (errorEl) errorEl.textContent = 'Укажите ДП (ID).'; idInput?.focus(); return; }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) { if (errorEl) errorEl.textContent = 'Укажите дату начала рабочего дня.'; dateInput?.focus(); return; }
+    if (!policyAlreadyAccepted && !privacyConsent?.checked) { if (errorEl) errorEl.textContent = 'Для первого входа необходимо принять условия и политику конфиденциальности.'; privacyConsent?.focus(); return; }
+    currentUser = { dpId, workDate, startedAt: new Date().toISOString() };
+    writeUserSession(currentUser);
+    if (!policyAlreadyAccepted) savePolicyAcceptance(dpId);
+    updatePolicyConsentUI(); if (errorEl) errorEl.textContent = '';
+    ensureCurrentShift(); setAuthenticated(true);
+    toast(`Рабочая сессия ${dpId} открыта. ID подставлен во все чек-листы.`, 'success', 5200);
   }
-
   function logout() {
     if (!authenticated) return;
-    if (!confirm('Выйти из системы?')) return;
-    setAuthenticated(false);
-    const errorEl = document.getElementById('loginError');
-    if (errorEl) errorEl.textContent = '';
+    if (!confirm('Завершить текущую персональную сессию и перейти к выбору другого ДП ID? Рабочие данные сохранятся в браузере.')) return;
+    clearUserSession(); currentUser = null; authenticated = false; setAuthenticated(false);
+    const errorEl = document.getElementById('loginError'); if (errorEl) errorEl.textContent = '';
     document.getElementById('loginForm')?.reset();
-    updatePolicyConsentUI();
-    document.getElementById('loginUsername')?.focus();
+    const dateInput = document.getElementById('loginWorkDate'); if (dateInput) dateInput.value = todayInput();
+    updatePolicyConsentUI(); updateCurrentUserUI(); document.getElementById('loginDpId')?.focus();
   }
-
   function initAuth() {
     document.getElementById('loginForm')?.addEventListener('submit', handleLoginSubmit);
     privacyConsent?.addEventListener('change', () => {
       if (loginSubmit) loginSubmit.disabled = !privacyConsent.checked;
-      const errorEl = document.getElementById('loginError');
-      if (privacyConsent.checked && errorEl?.textContent.includes('политику')) errorEl.textContent = '';
+      const errorEl = document.getElementById('loginError'); if (privacyConsent.checked && errorEl?.textContent.includes('политик')) errorEl.textContent = '';
     });
+    const dateInput = document.getElementById('loginWorkDate'); if (dateInput && !dateInput.value) dateInput.value = currentUser?.workDate || todayInput();
     updatePolicyConsentUI();
-    document.getElementById('togglePassword')?.addEventListener('click', () => {
-      const input = document.getElementById('loginPassword');
-      const btn = document.getElementById('togglePassword');
-      if (!input || !btn) return;
-      const show = input.type === 'password';
-      input.type = show ? 'text' : 'password';
-      btn.textContent = show ? 'Скрыть' : 'Показать';
-      btn.setAttribute('aria-label', show ? 'Скрыть пароль' : 'Показать пароль');
-    });
     ['logoutButton'].forEach(id => document.getElementById(id)?.addEventListener('click', logout));
     document.body.classList.toggle('auth-locked', !authenticated);
-    loginOverlay.hidden = authenticated;
-    appShell.hidden = !authenticated;
-    if (mobileNav) mobileNav.hidden = !authenticated;
-    if (!authenticated) setTimeout(() => document.getElementById('loginUsername')?.focus({ preventScroll: true }), 60);
+    loginOverlay.hidden = authenticated; appShell.hidden = !authenticated; if (mobileNav) mobileNav.hidden = !authenticated;
+    updateCurrentUserUI();
+    if (!authenticated) setTimeout(() => document.getElementById('loginDpId')?.focus({ preventScroll: true }), 60);
   }
 
   function todayInput() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+
+  function loadShiftStore() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(SHIFT_LOG_KEY) || 'null');
+      if (parsed && typeof parsed === 'object' && parsed.shifts && typeof parsed.shifts === 'object') return parsed;
+    } catch (_) {}
+    return { version: 1, shifts: {} };
+  }
+  let shiftStore = loadShiftStore();
+  function shiftStorageKey(user = currentUser) { return user?.dpId && user?.workDate ? `${user.dpId}::${user.workDate}` : ''; }
+  function getCurrentShift(create = false) {
+    const key = shiftStorageKey();
+    if (!key) return null;
+    if (!shiftStore.shifts[key] && create) {
+      shiftStore.shifts[key] = { dpId: currentUser.dpId, workDate: currentUser.workDate, startedAt: currentUser.startedAt || new Date().toISOString(), ended: false, endedAt: '', entries: [] };
+      saveShiftStore();
+    }
+    return shiftStore.shifts[key] || null;
+  }
+  function ensureCurrentShift() { return getCurrentShift(true); }
+  function saveShiftStore() {
+    try { localStorage.setItem(SHIFT_LOG_KEY, JSON.stringify(shiftStore)); } catch (error) { console.warn('Не удалось сохранить журнал смены', error); }
+  }
+  function formatShiftDate(value) {
+    if (!value) return '—';
+    const [year, month, day] = String(value).split('-').map(Number);
+    if (!year || !month || !day) return String(value);
+    return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' }).format(new Date(year, month - 1, day));
+  }
+  function formatShiftTime(value) {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) return '—:—';
+    return new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(date);
+  }
+  function recordChecklistInShift(exportType = 'new') {
+    if (!currentUser?.dpId) return;
+    const shift = ensureCurrentShift();
+    const entry = {
+      checklistId: state.id,
+      requestNumber: String(state.shipment?.id || '').trim(),
+      rc: String(state.shipment?.rc || '').trim(),
+      supplier: String(state.shipment?.supplier || '').trim(),
+      format: String(state.shipment?.format || '').trim(),
+      productCount: state.skus?.length || 0,
+      exportType: exportType === 'old' ? 'Старая форма' : 'Рабочая форма',
+      exportedAt: new Date().toISOString(),
+    };
+    const index = shift.entries.findIndex(item => item.checklistId === entry.checklistId);
+    if (index >= 0) shift.entries[index] = { ...shift.entries[index], ...entry };
+    else shift.entries.push(entry);
+    saveShiftStore(); updateCurrentUserUI();
+    if (state.ui.page === 'shift') render();
+  }
+  function shiftStats(shift = getCurrentShift(false)) {
+    const entries = Array.isArray(shift?.entries) ? shift.entries : [];
+    return {
+      checklists: entries.length,
+      positions: entries.reduce((sum, item) => sum + (Number(item.productCount) || 0), 0),
+      rcs: new Set(entries.map(item => item.rc).filter(Boolean)).size,
+      suppliers: new Set(entries.map(item => item.supplier).filter(Boolean)).size,
+    };
   }
 
   function normalizeRcSearch(value) {
@@ -866,7 +899,7 @@
       ...raw,
       id: raw.id || base.id,
       version: 25,
-      shipment: { ...base.shipment, ...(raw.shipment || {}), format: ['Онлайн', 'Архив'].includes(raw.shipment?.format) ? raw.shipment.format : 'Онлайн' },
+      shipment: { ...base.shipment, ...(raw.shipment || {}), dpId: currentUser?.dpId || raw.shipment?.dpId || '', format: ['Онлайн', 'Архив'].includes(raw.shipment?.format) ? raw.shipment.format : 'Онлайн' },
       skus: Array.isArray(raw.skus) && raw.skus.length ? raw.skus.slice(0, MAX_SKU).map(migrateSku) : [defaultSku()],
       groupChecklist: (() => {
         const saved = raw.groupChecklist && typeof raw.groupChecklist === 'object' ? raw.groupChecklist : {};
@@ -1335,7 +1368,7 @@
   }
   function addChecklist() {
     closeWorkspacePanel();
-    if (workspace.checklists.length >= MAX_CHECKLISTS) { toast('Одновременно можно вести не более 5 чек-листов.', 'error'); return; }
+    if (workspace.checklists.length >= MAX_CHECKLISTS) { toast('Одновременно можно вести не более 30 чек-листов.', 'error'); return; }
     const next = defaultState();
     next.ui.notesPinned = state.ui.notesPinned;
     next.ui.notesPosition = state.ui.notesPosition;
@@ -1528,7 +1561,7 @@
       ${field('Поставщик', 'shipment.supplier', s.supplier, 'text', { required: true, placeholder: 'Полное наименование' })}
       ${selectField('Формат приёмки', 'shipment.format', s.format, [{ value: 'Онлайн', label: 'Онлайн' }, { value: 'Архив', label: 'Архив' }], true)}
       ${field('МОКК', 'shipment.mokk', s.mokk, 'text', { required: true, placeholder: 'ФИО или ID' })}
-      ${field('ДП (ID)', 'shipment.dpId', s.dpId, 'text', { required: true, placeholder: 'ФИО / ID' })}
+      ${field('ДП (ID)', 'shipment.dpId', currentUser?.dpId || s.dpId, 'text', { required: true, readonly: true, placeholder: 'ДП ID', hint: 'Подставляется автоматически из персональной рабочей сессии.' })}
     </div><div class="arm-operational-import"><div><span class="eyebrow">Быстрый старт</span><strong>Создать приёмку по заявке из Excel АРМ</strong><small>Онлайн переносит только реквизиты и товары. Архив дополнительно переносит фактические результаты и дефекты.</small></div><div class="button-row"><button type="button" class="button button-secondary" data-action="open-arm-import">Импорт из АРМ</button>${s.format === 'Архив' ? '<button type="button" class="button button-ghost" data-action="open-archive-timing">Прогрессивное время</button>' : ''}</div></div><div class="timer-grid shipment-timer-grid operational-timers">${timerCard('Время подключения', 'connectionTime', 'Переносится в Excel.', { required: true })}${timerCard('Начало приёмки', 'acceptanceStart', 'Начало фактической приёмки.', { required: true })}</div></div></section>`;
   }
 
@@ -1656,6 +1689,7 @@
 
   function setPage(page) {
     if (!PAGE_META[page]) return;
+    if (page === 'shift') state.ui.interfaceMode = 'classic';
     const previousPage = state.ui.page;
     const pageChanged = previousPage !== page;
     const direction = PAGE_ORDER.indexOf(page) >= PAGE_ORDER.indexOf(previousPage) ? 'forward' : 'back';
@@ -1677,7 +1711,8 @@
   }
 
   function render() {
-    const operational = isOperationalMode();
+    const shiftPage = state.ui.page === 'shift';
+    const operational = isOperationalMode() && !shiftPage;
     const [stage, title] = PAGE_META[state.ui.page];
     const activeIndex = Math.max(0, workspace.checklists.findIndex(item => item.id === state.id));
     const workspaceScope = workspace.checklists.length === 1
@@ -1694,8 +1729,9 @@
     }
     if (modeLabel) modeLabel.textContent = operational ? 'Операционный' : 'Стандартный';
 
-    document.getElementById('pageEyebrow').textContent = operational ? `${workspaceScope} · быстрый режим` : `${workspaceScope} · ${stage}`;
-    document.getElementById('pageTitle').textContent = operational ? 'Операционная приёмка' : title;
+    document.getElementById('pageEyebrow').textContent = shiftPage ? `${currentUser?.dpId || 'ДП'} · ${currentUser?.workDate || todayInput()}` : (operational ? `${workspaceScope} · быстрый режим` : `${workspaceScope} · ${stage}`);
+    document.getElementById('pageTitle').textContent = shiftPage ? 'Моя смена' : (operational ? 'Операционная приёмка' : title);
+    const workspaceToggle = document.getElementById('workspaceToggle'); if (workspaceToggle) workspaceToggle.hidden = shiftPage;
     document.querySelectorAll('[data-page]').forEach(el => {
       const isActive = !operational && el.dataset.page === state.ui.page;
       el.classList.toggle('active', isActive);
@@ -1707,7 +1743,7 @@
     renderWorkspaceBar();
     const nextMarkup = operational
       ? renderOperationalWorkspace()
-      : ({ shipment: renderShipment, products: renderProducts, checklist: renderChecklist, defects: renderDefects, summary: renderSummary }[state.ui.page])();
+      : ({ shipment: renderShipment, products: renderProducts, checklist: renderChecklist, defects: renderDefects, summary: renderSummary, shift: renderShift }[state.ui.page])();
     if (pageContent.innerHTML !== nextMarkup) pageContent.innerHTML = nextMarkup;
     updateGlobalProgress();
     if (operational) refreshOperationalLiveValidation(state.ui.currentSku);
@@ -1721,14 +1757,15 @@
       products: ['02 / Товарные позиции', 'Товары поставки', 'Каждая позиция под контролем. Добавьте товары и выберите необходимые проверки.'],
       checklist: ['03 / Контроль качества', 'Внимание к каждому шагу.', 'Общая проверка партии, затем индивидуальный контроль каждой позиции.'],
       defects: ['04 / Реестр дефектов', 'Детали имеют значение.', 'Зафиксируйте выявленные дефекты. Если их нет — оставьте реестр пустым.'],
-      summary: ['05 / Итоги и выгрузка', 'От контроля — к результату.', 'Итоговые массы, время завершения и готовый отчёт по текущему РЦ.']
+      summary: ['05 / Итоги и выгрузка', 'От контроля — к результату.', 'Итоговые массы, время завершения и готовый отчёт по текущему РЦ.'],
+      shift: ['06 / Рабочая смена', 'Ваш день — в одной сводке.', 'Чек-листы, заявки, товарные позиции и итоговый Excel по персональному ДП ID.']
     }[state.ui.page] || ['', title, description];
     return `<div class="page-heading"><div><div class="page-heading-kicker"><i></i>${escapeHtml(copy[0])}</div><h2>${escapeHtml(copy[1])}</h2><p>${escapeHtml(copy[2])}</p></div><div class="page-heading-actions">${actions}</div></div>`;
   }
   function field(label, path, value, type = 'text', options = {}) {
     const required = options.required ? '<span class="required">*</span>' : '';
     const suffix = options.suffix ? `<span class="input-suffix">${escapeHtml(options.suffix)}</span>` : '';
-    return `<div class="field"><label>${escapeHtml(label)} ${required}</label><div class="${suffix ? 'input-group' : ''}"><input class="input" type="${type}" data-field="${escapeAttr(path)}" value="${escapeAttr(value ?? '')}" ${options.placeholder ? `placeholder="${escapeAttr(options.placeholder)}"` : ''} ${options.min !== undefined ? `min="${options.min}"` : ''} ${options.step ? `step="${options.step}"` : ''} />${suffix}</div>${options.hint ? `<span class="field-hint">${escapeHtml(options.hint)}</span>` : ''}</div>`;
+    return `<div class="field"><label>${escapeHtml(label)} ${required}</label><div class="${suffix ? 'input-group' : ''}"><input class="input" type="${type}" data-field="${escapeAttr(path)}" value="${escapeAttr(value ?? '')}" ${options.placeholder ? `placeholder="${escapeAttr(options.placeholder)}"` : ''} ${options.min !== undefined ? `min="${options.min}"` : ''} ${options.step ? `step="${options.step}"` : ''} ${options.readonly ? 'readonly aria-readonly="true"' : ''} />${suffix}</div>${options.hint ? `<span class="field-hint">${escapeHtml(options.hint)}</span>` : ''}</div>`;
   }
   function selectField(label, path, value, options, required = false) {
     return `<div class="field"><label>${escapeHtml(label)} ${required ? '<span class="required">*</span>' : ''}</label><select class="select" data-field="${escapeAttr(path)}">${options.map(o => `<option value="${escapeAttr(o.value)}" ${o.value === value ? 'selected' : ''}>${escapeHtml(o.label)}</option>`).join('')}</select></div>`;
@@ -2169,7 +2206,7 @@
         <div class="field"><label>2. Номер заявки</label><input class="input" id="armImportRequest" type="text" value="${escapeAttr(armImportSession.requestNumber || '')}" placeholder="Например: 23000Y8888584" autocomplete="off"></div>
       </div>
       <div class="arm-import-file-state ${armImportSession.loaded ? 'is-ready' : armImportSession.loading ? 'is-loading' : ''}">${armImportSession.loading ? '<span class="spinner-mini"></span><strong>Читаем и индексируем файл…</strong>' : armImportSession.loaded ? `<strong>✓ Файл готов</strong><span>${armImportSession.summary?.rows || 0} строк · ${armImportSession.summary?.requests || 0} заявок · лист «${escapeHtml(armImportSession.summary?.sheetName || '')}»</span>` : '<strong>Файл ещё не загружен</strong><span>Excel обрабатывается локально и не отправляется на сервер.</span>'}</div>
-      ${rows.length ? `<section class="arm-preview"><div class="arm-preview-head"><div><span class="eyebrow">Найдена заявка</span><h3>${escapeHtml(armImportSession.requestNumber)}</h3></div><span class="viz-badge">${rows.length} товаров</span></div><div class="arm-preview-grid">${armPreviewField('РЦ', first.rc)}${armPreviewField('Дата приёмки', armDateInput(first.date))}${armPreviewField('Поставщик', first.supplier)}${armPreviewField('Формат', mode)}${armPreviewField('МОКК', mode === 'Архив' ? armArchiveMokkValue(rows) : '')}${armPreviewField('ДП (ID)', '')}</div><div class="arm-product-preview">${rows.map((row, index) => `<div><span>${index + 1}</span><strong>${escapeHtml(armText(row.name) || `Товар ${index + 1}`)}</strong><small>${escapeHtml(armText(row.code) || 'Код не указан')}</small>${mode === 'Архив' ? `<small class="arm-archive-values">${escapeHtml(armArchivePreviewValues(row))}</small>` : ''}</div>`).join('')}</div></section>` : ''}
+      ${rows.length ? `<section class="arm-preview"><div class="arm-preview-head"><div><span class="eyebrow">Найдена заявка</span><h3>${escapeHtml(armImportSession.requestNumber)}</h3></div><span class="viz-badge">${rows.length} товаров</span></div><div class="arm-preview-grid">${armPreviewField('РЦ', first.rc)}${armPreviewField('Дата приёмки', armDateInput(first.date))}${armPreviewField('Поставщик', first.supplier)}${armPreviewField('Формат', mode)}${armPreviewField('МОКК', mode === 'Архив' ? armArchiveMokkValue(rows) : '')}${armPreviewField('ДП (ID)', currentUser?.dpId || '')}</div><div class="arm-product-preview">${rows.map((row, index) => `<div><span>${index + 1}</span><strong>${escapeHtml(armText(row.name) || `Товар ${index + 1}`)}</strong><small>${escapeHtml(armText(row.code) || 'Код не указан')}</small>${mode === 'Архив' ? `<small class="arm-archive-values">${escapeHtml(armArchivePreviewValues(row))}</small>` : ''}</div>`).join('')}</div></section>` : ''}
       ${(armImportSession.warnings || []).length ? `<div class="issue-list arm-import-warnings">${armImportSession.warnings.map(warning => `<div class="issue ${tooMany || !rows.length ? 'error' : ''}">${escapeHtml(warning)}</div>`).join('')}</div>` : ''}
     </div>`;
     footer.innerHTML = `<button class="button button-ghost" id="armImportCancel" type="button">Отмена</button><button class="button button-secondary" id="armImportSearch" type="button" ${!armImportSession.loaded || armImportSession.loading ? 'disabled' : ''}>Найти заявку</button>${rows.length && !tooMany ? '<button class="button button-primary" id="armImportApply" type="button">Создать приёмку</button>' : ''}`;
@@ -2217,7 +2254,7 @@
       date: armDateInput(first.date),
       supplier: armText(first.supplier),
       format: mode,
-      mokk: autoMokk, dpId: '', connectionTime: '', acceptanceStart: '', acceptanceEnd: '', reportEnd: '',
+      mokk: autoMokk, dpId: currentUser?.dpId || '', connectionTime: '', acceptanceStart: '', acceptanceEnd: '', reportEnd: '',
     };
     state.skus = importedSkus.length ? importedSkus : [defaultSku()];
     state.groupChecklist = defaultGroupChecklist();
@@ -2411,7 +2448,7 @@
         ${field('Поставщик', 'shipment.supplier', s.supplier, 'text', { required: true, placeholder: 'Полное наименование' })}
         ${selectField('Формат приёмки', 'shipment.format', s.format, [{ value: 'Онлайн', label: 'Онлайн' }, { value: 'Архив', label: 'Архив' }], true)}
         ${field('МОКК', 'shipment.mokk', s.mokk, 'text', { required: true, placeholder: 'ФИО или идентификатор' })}
-        ${field('ДП (ID)', 'shipment.dpId', s.dpId, 'text', { required: true, placeholder: 'ФИО / ID сотрудника' })}
+        ${field('ДП (ID)', 'shipment.dpId', currentUser?.dpId || s.dpId, 'text', { required: true, readonly: true, placeholder: 'ДП ID', hint: 'Подставляется автоматически из персональной рабочей сессии.' })}
       </div>`,
     });
     const startSection = renderAdaptiveSection({
@@ -2819,6 +2856,79 @@
       </div>`;
   }
 
+  function renderShift() {
+    const shift = ensureCurrentShift();
+    const stats = shiftStats(shift);
+    const entries = [...(shift.entries || [])].sort((a, b) => String(a.exportedAt || '').localeCompare(String(b.exportedAt || '')));
+    const rows = entries.map((item, index) => `<tr>
+      <td><span class="shift-row-index">${String(index + 1).padStart(2, '0')}</span></td>
+      <td><strong>${escapeHtml(item.requestNumber || 'Без номера')}</strong><small>${escapeHtml(item.supplier || 'Поставщик не указан')}</small></td>
+      <td><strong>${escapeHtml(item.rc || 'РЦ не указан')}</strong><small>${escapeHtml(item.format || '—')}</small></td>
+      <td><strong>${Number(item.productCount) || 0}</strong><small>товарных позиций</small></td>
+      <td><strong>${escapeHtml(formatShiftTime(item.exportedAt))}</strong><small>${escapeHtml(item.exportType || 'Excel')}</small></td>
+    </tr>`).join('');
+    const endedLabel = shift.ended && shift.endedAt ? `Завершена в ${formatShiftTime(shift.endedAt)}` : 'Смена в работе';
+    return `${pageHeading('Моя смена', 'Персональная статистика ДП за выбранный рабочий день.', `<button class="button button-primary" data-action="export-shift-report">Выгрузить итог дня</button>`)}
+      <div class="content-stack shift-workspace">
+        <section class="shift-hero card">
+          <div class="shift-hero-main">
+            <div class="shift-user-mark"><span>ДП</span></div>
+            <div><span class="eyebrow">ПЕРСОНАЛЬНАЯ СЕССИЯ</span><h3>${escapeHtml(currentUser?.dpId || '—')}</h3><p>${escapeHtml(formatShiftDate(currentUser?.workDate))} · ${escapeHtml(endedLabel)}</p></div>
+          </div>
+          <div class="shift-controls">
+            <label class="shift-date-control"><span>Дата работы</span><input class="input" type="date" data-shift-date value="${escapeAttr(currentUser?.workDate || todayInput())}"></label>
+            <label class="shift-end-control"><input type="checkbox" data-shift-end ${shift.ended ? 'checked' : ''}><span><strong>Рабочий день закончен</strong><small>Необязательно. Отметка только фиксирует завершение смены.</small></span></label>
+          </div>
+        </section>
+        <div class="shift-kpi-grid">
+          <article class="shift-kpi accent"><span>Чек-листов за день</span><strong>${stats.checklists}</strong><small>успешно выгружено в Excel</small></article>
+          <article class="shift-kpi"><span>Товарных позиций</span><strong>${stats.positions}</strong><small>суммарно по журналу</small></article>
+          <article class="shift-kpi"><span>РЦ в работе</span><strong>${stats.rcs}</strong><small>уникальных распределительных центров</small></article>
+          <article class="shift-kpi"><span>Поставщиков</span><strong>${stats.suppliers}</strong><small>уникальных за рабочий день</small></article>
+        </div>
+        <section class="card card-pad shift-journal-card">
+          <div class="section-head"><div><h3 class="card-title">Журнал чек-листов</h3><p class="card-subtitle">Запись создаётся после успешной выгрузки Excel. Повторная выгрузка того же рабочего пространства обновляет запись, а не дублирует её.</p></div><span class="shift-count-badge">${stats.checklists} шт.</span></div>
+          ${rows ? `<div class="shift-table-wrap"><table class="data-table shift-table"><thead><tr><th>#</th><th>Заявка</th><th>РЦ</th><th>ТП</th><th>Выгрузка</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="shift-empty"><span>0</span><strong>Пока нет выгруженных чек-листов</strong><p>Закончите приёмку и выгрузите Excel — заявка автоматически появится здесь.</p><button class="button button-secondary" data-page="shipment">Перейти к приёмке</button></div>`}
+        </section>
+        <section class="shift-report-panel card card-pad ${shift.ended ? 'is-ended' : ''}">
+          <div><span class="eyebrow">ИТОГ РАБОЧЕГО ДНЯ</span><h3>${stats.checklists} чек-лист${stats.checklists === 1 ? '' : stats.checklists < 5 ? 'а' : 'ов'} · ${stats.positions} товарных позиций</h3><p>В отчёт попадут ДП ID, дата, номера заявок, РЦ, поставщики, количество товарных позиций и время выгрузки.</p></div>
+          <button class="button button-primary" data-action="export-shift-report" ${stats.checklists ? '' : 'disabled'}>Скачать Excel по смене</button>
+        </section>
+      </div>`;
+  }
+
+  async function exportShiftReport() {
+    const shift = ensureCurrentShift();
+    const entries = Array.isArray(shift.entries) ? shift.entries : [];
+    if (!entries.length) { toast('В журнале смены пока нет выгруженных чек-листов.', 'error'); return; }
+    if (!window.ExcelJS) { toast('Не загрузился модуль ExcelJS.', 'error'); return; }
+    try {
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = ''; workbook.lastModifiedBy = ''; workbook.created = new Date(); workbook.modified = new Date();
+      const sheet = workbook.addWorksheet('Смена ДП', { views: [{ state: 'frozen', ySplit: 5 }] });
+      sheet.mergeCells('A1:G1'); sheet.getCell('A1').value = 'Магнит · Дистанционная приёмка · Итог рабочей смены';
+      sheet.mergeCells('A2:C2'); sheet.getCell('A2').value = `ДП (ID): ${currentUser?.dpId || ''}`;
+      sheet.mergeCells('D2:G2'); sheet.getCell('D2').value = `Дата: ${formatShiftDate(currentUser?.workDate)}`;
+      const stats = shiftStats(shift);
+      sheet.mergeCells('A3:B3'); sheet.getCell('A3').value = `Чек-листов: ${stats.checklists}`;
+      sheet.mergeCells('C3:D3'); sheet.getCell('C3').value = `Товарных позиций: ${stats.positions}`;
+      sheet.mergeCells('E3:G3'); sheet.getCell('E3').value = shift.ended ? `Смена завершена: ${formatShiftTime(shift.endedAt)}` : 'Смена в работе';
+      const headerRow = sheet.getRow(5); headerRow.values = ['№', 'Номер заявки', 'РЦ', 'Поставщик', 'Товарных позиций', 'Формат', 'Время выгрузки'];
+      entries.forEach((item, index) => sheet.addRow([index + 1, item.requestNumber || '', item.rc || '', item.supplier || '', Number(item.productCount) || 0, item.format || '', formatShiftTime(item.exportedAt)]));
+      sheet.addRow([]);
+      const totalRow = sheet.addRow(['ИТОГО', `${stats.checklists} чек-листов`, '', '', stats.positions, '', '']);
+      sheet.columns = [{ width: 7 }, { width: 22 }, { width: 34 }, { width: 34 }, { width: 20 }, { width: 16 }, { width: 18 }];
+      sheet.getRow(1).height = 30; sheet.getRow(1).font = { bold: true, size: 16 }; sheet.getRow(1).alignment = { vertical: 'middle' };
+      headerRow.font = { bold: true }; headerRow.height = 24; totalRow.font = { bold: true };
+      sheet.eachRow({ includeEmpty: false }, row => { row.alignment = { vertical: 'middle', wrapText: true }; });
+      sheet.autoFilter = { from: 'A5', to: `G${5 + entries.length}` };
+      const buffer = await workbook.xlsx.writeBuffer();
+      const filename = `Смена_${sanitizeFilenamePart(currentUser?.dpId || 'ДП')}_${currentUser?.workDate || todayInput()}.xlsx`;
+      downloadBlob(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), filename);
+      toast('Итог смены выгружен в Excel.', 'success');
+    } catch (error) { console.error(error); toast(`Не удалось выгрузить итог смены: ${error?.message || error}`, 'error', 7000); }
+  }
+
   function setPath(path, value) {
     const parts = path.split('.'); let target = state;
     while (parts.length > 1) target = target[parts.shift()];
@@ -3005,6 +3115,14 @@
   function handleChange(event) {
     if (!authenticated) return;
     const el = event.target;
+    if (el.dataset.shiftEnd !== undefined) {
+      const shift = ensureCurrentShift(); shift.ended = Boolean(el.checked); shift.endedAt = shift.ended ? new Date().toISOString() : ''; saveShiftStore(); updateCurrentUserUI(); render(); return;
+    }
+    if (el.dataset.shiftDate !== undefined) {
+      const nextDate = String(el.value || '').trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(nextDate) && currentUser) { currentUser.workDate = nextDate; writeUserSession(currentUser); ensureCurrentShift(); updateCurrentUserUI(); render(); }
+      return;
+    }
     if (el.classList?.contains('shipment-validation-error')) {
       el.classList.remove('shipment-validation-error');
       if (!el.classList.contains('is-invalid')) el.setAttribute('aria-invalid', 'false');
@@ -3324,6 +3442,8 @@
     const button = event.target.closest('[data-action]');
     if (!button) return;
     const action = button.dataset.action;
+    if (action === 'export-shift-report') { exportShiftReport(); return; }
+    if (action === 'open-shift-page') { setPage('shift'); return; }
     if (action === 'open-arm-import') { openArmImportModal(); return; }
     if (action === 'open-archive-timing') { showArchiveProgressiveTimingModal(); return; }
     if (action === 'smart-comment-suggestion') {
@@ -3616,7 +3736,7 @@
 
   function downloadBackup() {
     saveNow();
-    downloadBlob(new Blob([JSON.stringify(workspace, null, 2)], { type: 'application/json;charset=utf-8' }), `резервная_копия_5_РЦ_${new Date().toISOString().slice(0, 10)}.json`);
+    downloadBlob(new Blob([JSON.stringify(workspace, null, 2)], { type: 'application/json;charset=utf-8' }), `резервная_копия_до_30_РЦ_${new Date().toISOString().slice(0, 10)}.json`);
     toast('Резервная копия всех открытых чек-листов сохранена.', 'success');
   }
   async function importBackup(file) {
@@ -3696,7 +3816,8 @@
         <li><strong>Локальное хранение.</strong> Основное рабочее состояние сохраняется в браузере на используемом устройстве и не отправляется автоматически.</li>
         <li><strong>Формирование Excel.</strong> При запуске серверной выгрузки данные могут передаваться внутреннему обработчику текущего сайта исключительно для формирования файла. В локальном режиме Excel создаётся в браузере.</li>
         <li><strong>Ответственность пользователя.</strong> Пользователь отвечает за достоверность и полноту внесённых сведений, корректность выбранного РЦ и товара, а также за проверку итогового файла.</li>
-        <li><strong>Конфиденциальность.</strong> Нельзя передавать логин, пароль, резервные копии, выгрузки и рабочие данные третьим лицам без разрешения.</li>
+        <li><strong>Идентификация по ДП (ID).</strong> Вход выполняется только по рабочему ДП (ID). Он автоматически подставляется в открытые чек-листы и используется для персонального журнала смены.</li>
+        <li><strong>Конфиденциальность.</strong> Нельзя передавать чужой ДП (ID), резервные копии, выгрузки и рабочие данные третьим лицам без разрешения.</li>
         <li><strong>Безопасность устройства.</strong> Пользователь обязан ограничить доступ к компьютеру и профилю браузера. Локальное хранение не исключает риски общего устройства, расширений, вредоносного ПО или ручной передачи файлов.</li>
       </ul>
       <p class="policy-modal-meta">Версия политики: ${escapeHtml(POLICY_VERSION)}</p>
@@ -3787,7 +3908,8 @@
         const blob = await response.blob(); if (exportCancelled) return; if (blob.size < 1000) throw new Error('Сервер вернул пустой файл');
         setExportLoading(true, 'Файл готов. Начинаем скачивание…', 96, `Формируем ${label}`);
         downloadBlob(blob, buildChecklistFilename(state.shipment));
-        setExportLoading(false); toast('Excel сформирован.', 'success', 5000); return;
+        recordChecklistInShift(normalizedType);
+        setExportLoading(false); toast('Excel сформирован и добавлен в журнал смены.', 'success', 5000); return;
       } catch (error) { serverError = error; console.warn('Серверный экспорт недоступен', error); }
       finally { clearTimeout(timer); if (activeExportAbortController === controller) activeExportAbortController = null; }
     }
@@ -3796,7 +3918,8 @@
       setExportLoading(true, `Создаём ${label} в браузере…`, 20, `Формируем ${label}`);
       await exportExcelSafeBrowser(exportState, normalizedType);
       if (exportCancelled) return;
-      setExportLoading(false); toast(`Excel сформирован.${serverError ? ' Использован резервный режим.' : ''}`, 'success', 6000);
+      recordChecklistInShift(normalizedType);
+      setExportLoading(false); toast(`Excel сформирован и добавлен в журнал смены.${serverError ? ' Использован резервный режим.' : ''}`, 'success', 6000);
     } catch (error) { setExportLoading(false); console.error(error); toast(`Не удалось сформировать Excel: ${error?.message || error}`, 'error', 9000); }
   }
 

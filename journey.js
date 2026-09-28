@@ -6,12 +6,12 @@
   const buttons = [...document.querySelectorAll('[data-goto]')];
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const scenes = [
-    ['01 / БЕРЕЖНО ВЫРАЩЕНО', '01 / ПРОИСХОЖДЕНИЕ', 'Всё начинается с урожая.'],
-    ['02 / ТОЧКА ПРИБЫТИЯ', '02 / РАСПРЕДЕЛИТЕЛЬНЫЙ ЦЕНТР', 'Свежая поставка. Внимание к деталям.'],
-    ['03 / РЕШАЮЩИЙ ЭТАП', '03 / КОНТРОЛЬ КАЧЕСТВА', 'На полку — только после проверки.'],
-    ['04 / СВЕЖЕСТЬ РЯДОМ', '04 / КОНТРОЛЬ УСПЕШНО ПРОЙДЕН', 'Теперь — на полки «Магнита».']
+    ['01 / ОТБОР У ПОСТАВЩИКА', '01 / ПУТЬ ПОСТАВКИ', 'Свежесть начинается до ворот РЦ.'],
+    ['02 / ПРИБЫТИЕ НА РЦ', '02 / РАСПРЕДЕЛИТЕЛЬНЫЙ ЦЕНТР', 'Поставка прибыла. Контроль начинается.'],
+    ['03 / КОНТРОЛЬ', '03 / КАЧЕСТВО И УСЛОВИЯ', 'Каждый показатель превращается в решение.'],
+    ['04 / ДОПУСК В СЕТЬ', '04 / ПРОВЕРЕНО', 'Контроль пройден. Продукция движется дальше.']
   ];
-  const duration = 6000;
+  const duration = 5200;
   let elapsed = 0, last = 0, frame = 0, scene = -1, playing = !reduced.matches, suspended = false;
   const total = duration * scenes.length;
   function draw() {
@@ -22,7 +22,7 @@
       document.getElementById('sceneKicker').textContent = scenes[scene][1];
       document.getElementById('sceneTitle').textContent = scenes[scene][2];
     }
-    film.classList.toggle('approved', elapsed >= duration * 2 + 3900 || (reduced.matches && scene === 2));
+    film.classList.toggle('approved', elapsed >= duration * 2 + 3200 || (reduced.matches && scene === 2));
     buttons.forEach((b, i) => {
       b.classList.toggle('active', i === scene);
       b.setAttribute('aria-current', i === scene ? 'step' : 'false');

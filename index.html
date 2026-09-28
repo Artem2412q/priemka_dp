@@ -8,6 +8,7 @@
 <link rel="manifest" href="./manifest.webmanifest?v=81">
 <link rel="stylesheet" href="./assets/fonts/fonts.css">
 <link rel="stylesheet" href="./design.css?v=82">
+<link rel="stylesheet" href="./next-design.css?v=90">
 </head>
 <body class="auth-locked">
 <a class="skip-link" href="#pageContent">Перейти к рабочей области</a>
@@ -19,30 +20,31 @@
   <footer class="auth-hero-footer"><span><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7l-9-4Z"/><path d="m8 12 3 3 5-6"/></svg> На полку — только после контроля.</span><span>01 — 04</span></footer>
  </section>
  <section class="auth-entry">
-  <div class="auth-entry-top"><span>ДИСТАНЦИОННАЯ ПРИЁМКА</span><span class="entry-live"><i></i> Рабочее пространство</span></div>
-  <div class="auth-card">
-   <div class="auth-card-top"><span class="auth-sign"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3H5a2 2 0 0 0-2 2v4m12-6h4a2 2 0 0 1 2 2v4M3 15v4a2 2 0 0 0 2 2h4m12-6v4a2 2 0 0 1-2 2h-4M3 12h18"/></svg></span><div class="eyebrow">РАДЫ ВАС ВИДЕТЬ</div><h2>Всё начинается<br>с внимания.</h2><p>Войдите, чтобы начать приёмку<br>и позаботиться о качестве.</p></div>
+  <div class="auth-entry-top"><span>ДИСТАНЦИОННАЯ ПРИЁМКА</span><span class="entry-live"><i></i> DP Workspace 2026</span></div>
+  <div class="auth-card auth-card-next">
+   <div class="auth-card-top"><span class="auth-sign">ДП</span><div class="eyebrow">ПЕРСОНАЛЬНАЯ РАБОЧАЯ СЕССИЯ</div><h2>Вход без пароля.<br>Только ваш ДП ID.</h2><p>Укажите рабочий идентификатор один раз — он автоматически попадёт во все открытые и новые чек-листы этой сессии.</p></div>
    <form id="loginForm" class="auth-form">
-    <div class="field auth-field"><label for="loginUsername">Рабочий логин</label><input class="input" id="loginUsername" name="username" type="text" autocomplete="username" placeholder="Введите логин" required></div>
-    <div class="field auth-field"><label for="loginPassword">Пароль</label><div class="auth-password-wrap"><input class="input" id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="Введите пароль" required><button type="button" class="auth-toggle-pass" id="togglePassword" aria-label="Показать пароль">Показать</button></div></div>
+    <div class="field auth-field"><label for="loginDpId">ДП (ID) <span class="required">*</span></label><input class="input auth-id-input" id="loginDpId" name="dpId" type="text" autocomplete="username" placeholder="Например: Чепко А.Е. / ID" required maxlength="80"></div>
+    <div class="field auth-field"><label for="loginWorkDate">Дата начала работы <span class="required">*</span></label><input class="input" id="loginWorkDate" name="workDate" type="date" required></div>
+    <div class="auth-session-preview"><span>Персональная сессия</span><strong>Ваш ID → все РЦ → все Excel</strong><small>Пароли и общий системный логин больше не используются.</small></div>
     <section class="auth-consent" id="privacyConsentBlock" aria-labelledby="privacyConsentTitle">
-     <details class="policy-details"><summary id="privacyConsentTitle">Условия использования <span>↗</span></summary><div class="auth-consent-copy">
-              <p>Система предназначена только для внутренней работы с дистанционной приёмкой.</p>
+     <details class="policy-details"><summary id="privacyConsentTitle">Политика конфиденциальности и условия <span>↗</span></summary><div class="auth-consent-copy">
+              <p>Система предназначена для внутренней работы с дистанционной приёмкой и хранит рабочие данные локально в используемом браузере.</p>
               <ul>
-                <li><strong>Локальное хранение.</strong> Основное рабочее состояние сохраняется в браузере на используемом устройстве и не отправляется автоматически. При запуске серверной выгрузки данные могут передаваться внутреннему обработчику текущего сайта исключительно для формирования Excel; в локальном режиме файл создаётся непосредственно в браузере.</li>
-                <li><strong>Ответственность пользователя.</strong> Пользователь отвечает за достоверность и полноту внесённых сведений, корректность выбранного РЦ и товарной позиции, а также за проверку сформированного Excel перед дальнейшим использованием.</li>
-                <li><strong>Конфиденциальность.</strong> Нельзя передавать логин, пароль, резервные копии, выгрузки и рабочие данные третьим лицам без разрешения. Пользователь обязан ограничить доступ к устройству и браузеру.</li>
-                <li><strong>Риски локального устройства.</strong> Локальное хранение не исключает риски доступа через общий компьютер, профиль браузера, расширения, вредоносное ПО или ручную передачу файлов.</li>
+                <li><strong>ДП ID.</strong> Идентификатор используется для автоматического заполнения чек-листов и журнала рабочей смены.</li>
+                <li><strong>Локальное хранение.</strong> Рабочее состояние, журнал смены и настройки сохраняются в браузере. При серверной выгрузке данные могут передаваться внутреннему обработчику только для формирования Excel.</li>
+                <li><strong>Ответственность пользователя.</strong> Перед выгрузкой необходимо проверить номер заявки, РЦ, товары, статусы и итоговые значения.</li>
+                <li><strong>Конфиденциальность.</strong> Не передавайте рабочие выгрузки, резервные копии и данные третьим лицам без разрешения и ограничивайте доступ к устройству.</li>
               </ul>
             </div></details>
-     <label class="auth-consent-check" for="privacyConsent"><input id="privacyConsent" type="checkbox"><span>Я ознакомился с условиями, принимаю ответственность за введённые данные и соблюдение конфиденциальности.</span></label>
+     <label class="auth-consent-check" for="privacyConsent"><input id="privacyConsent" type="checkbox"><span>Я ознакомился с условиями работы и правилами конфиденциальности.</span></label>
     </section>
     <div class="auth-error" id="loginError" role="alert" aria-live="polite"></div>
-    <button class="button button-primary full auth-submit" id="loginSubmit" type="submit" disabled>Войти в пространство <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button>
+    <button class="button button-primary full auth-submit" id="loginSubmit" type="submit" disabled>Начать рабочий день <svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button>
    </form>
-   <div class="auth-footnote"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7l-9-4Z"/><path d="m8 12 3 3 5-6"/></svg><span>Для внутренней работы.<br>Прогресс автоматически сохраняется в браузере.</span></div>
+   <div class="auth-footnote"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7l-9-4Z"/><path d="m8 12 3 3 5-6"/></svg><span>До 30 параллельных РЦ.<br>Автосохранение и персональный журнал смены.</span></div>
   </div>
-  <footer class="auth-entry-footer"><span>Внимание к деталям. Уверенность в качестве.</span><b>М</b></footer>
+  <footer class="auth-entry-footer"><span>Контроль. Скорость. Прослеживаемость.</span><b>М</b></footer>
  </section>
 </div>
 <nav class="mobile-nav workflow-dock" aria-label="Навигация по этапам" hidden>
@@ -63,6 +65,9 @@
     <button class="mobile-nav-item" data-page="summary"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9l-7-7Z"/><path d="M13 2v7h7M8 13h8M8 17h5"/></svg>
       <span class="mobile-nav-index">05</span><span class="mobile-nav-copy"><strong>Итоги</strong><small id="navMetricSummary">0/3</small></span><span class="mobile-nav-state" id="navCheckSummary">0%</span><i class="mobile-nav-progress"><b id="navProgressSummary"></b></i>
     </button>
+    <button class="mobile-nav-item mobile-nav-shift" data-page="shift"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v16H4z"/><path d="M8 2v4M16 2v4M4 9h16M8 13h3M8 17h6"/></svg>
+      <span class="mobile-nav-index">06</span><span class="mobile-nav-copy"><strong>Моя смена</strong><small id="navMetricShift">журнал дня</small></span><span class="mobile-nav-state" id="navCheckShift">•</span>
+    </button>
   </div>
     <div class="sidebar-bottom">
       <div class="topbar-progress" id="topbarProgress"><span><small>Готовность приёмки</small><strong id="topbarRcProgress">0%</strong></span><i><b id="topbarProgressFill"></b></i><p>Каждый шаг — вклад в качество.</p></div>
@@ -74,11 +79,12 @@
  <header class="topbar">
   <div class="topbar-left"><div class="topbar-title"><span class="eyebrow" id="pageEyebrow">Этап 1 из 5</span><h1 id="pageTitle">Приёмка</h1></div></div>
   <div class="topbar-actions">
+   <button class="user-chip" id="userChip" type="button" data-page="shift" title="Открыть журнал смены"><span class="user-avatar">ДП</span><span><small>Пользователь</small><strong id="currentDpId">—</strong></span></button>
    <button class="rc-launcher" id="workspaceToggle" type="button" data-action="toggle-workspace" aria-expanded="false" aria-controls="workspaceBar"><span class="rc-launcher-dot"></span><span><small>Активный РЦ</small><strong id="topbarRcName">РЦ 1</strong></span><i>⌄</i></button>
    <div class="topbar-separator"></div><div class="save-state" id="saveState" aria-live="polite"><span></span><b>Сохранено</b><small>локально</small></div>
    <button class="icon-button" id="openNotesTop" type="button" title="Рабочие заметки" aria-label="Рабочие заметки"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M16 3l5 5M10 14l3-1L22 4l-3-3-9 9-1 4Z"/></svg></button>
    <button class="icon-button theme-trigger" id="themeToggle" type="button" title="Темы оформления" aria-label="Темы оформления"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18Z"/></svg></button>
-   <details class="topbar-more"><summary class="icon-button" aria-label="Дополнительные действия">•••</summary><div class="topbar-more-menu"><button class="topbar-menu-item" data-open-film type="button"><span>Путь свежести</span><small>Посмотреть вступительный ролик</small></button><button class="topbar-menu-item" data-action="toggle-interface-mode" type="button"><span>Переключить режим</span><small>Стандартный / операционный</small></button><button class="topbar-menu-item is-primary" id="exportOldTop" type="button"><span>Excel · прежняя форма</span><small>Выгрузить текущий РЦ</small></button><button class="topbar-menu-item" id="logoutButton" type="button"><span>Выйти из системы</span><small>Завершить рабочую сессию</small></button></div></details>
+   <details class="topbar-more"><summary class="icon-button" aria-label="Дополнительные действия">•••</summary><div class="topbar-more-menu"><button class="topbar-menu-item" data-open-film type="button"><span>Путь свежести</span><small>Посмотреть вступительный ролик</small></button><button class="topbar-menu-item" data-action="toggle-interface-mode" type="button"><span>Переключить режим</span><small>Стандартный / операционный</small></button><button class="topbar-menu-item is-primary" id="exportOldTop" type="button"><span>Excel · прежняя форма</span><small>Выгрузить текущий РЦ</small></button><button class="topbar-menu-item" id="logoutButton" type="button"><span>Сменить пользователя</span><small>Завершить текущую персональную сессию</small></button></div></details>
   </div>
  </header>
  <section class="workspace-switcher" id="workspaceBar" aria-label="Переключение между РЦ"></section>
@@ -139,5 +145,5 @@
 </div>
 <dialog class="film-dialog" id="filmDialog" aria-labelledby="filmDialogTitle"><header><div><span class="eyebrow">МАГНИТ · КАЧЕСТВО</span><h2 id="filmDialogTitle">Путь свежести</h2></div><button type="button" class="icon-button" id="filmClose" aria-label="Закрыть ролик"><svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 6 12 12M6 18 18 6"/></svg></button></header><div id="filmDialogPlayer"></div><p>На полку магазина попадает только продукция, успешно прошедшая контроль качества.</p></dialog>
 <script src="./vendor/jszip.min.js?v=81"></script><script src="./vendor/exceljs.min.js?v=81"></script>
-<script src="./template-data.js?v=81"></script><script src="./old-template-data.js?v=81"></script><script src="./theme-studio.js?v=81"></script><script src="./experience.js?v=81"></script><script src="./app.js?v=82"></script>
+<script src="./template-data.js?v=81"></script><script src="./old-template-data.js?v=81"></script><script src="./theme-studio.js?v=90"></script><script src="./experience.js?v=81"></script><script src="./app.js?v=90"></script>
 </body></html>
