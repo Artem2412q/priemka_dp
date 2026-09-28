@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = 'magnit-dp-workspace-v30';
   const LEGACY_KEYS = ['magnit-dp-workspace-v26', 'magnit-dp-manual-v21', 'magnit-dp-manual-v20', 'magnit-dp-manual-v19', 'magnit-dp-manual-v18', 'magnit-dp-manual-v17', 'magnit-dp-state-v14', 'magnit-dp-state-v13', 'magnit-dp-state-v12'];
-  const MAX_SKU = 12;
+  const TEMPLATE_SKU_CAPACITY = 12; // только для старой Excel-формы; интерфейс без фиксированного лимита
   const MAX_CHECKLISTS = 30;
   const MAX_DEFECTS = 6;
   const AUTH_SESSION_KEY = 'magnit-dp-user-session-v30';
@@ -11,6 +11,7 @@
   const POLICY_VERSION = '2.0';
   const POLICY_ACCEPTANCE_KEY = 'magnit-dp-policy-consent-v1';
   const POLICY_SESSION_KEY = 'magnit-dp-policy-consent-session-v1';
+  const DAY_PLAN_KEY = 'magnit-dp-day-plan-v1';
   const ALLOWED_DP_IDS = new Set(['45054','45309','45659','49031','45302','45965','44836','45312','45963','45761','19803','46342','46132','43542','45413','45381','45493','46322','45980','40039','44018','44295','45328','45124','45048','46184','46413','45397','44162','45666','46311','46571']);
 
   function readUserSession() {
@@ -320,6 +321,7 @@
   }
 
   const PAGE_META = {
+    home: ['Рабочий день', 'Главная'],
     shipment: ['Этап 1 из 5', 'Приёмка'],
     products: ['Этап 2 из 5', 'Товары'],
     checklist: ['Этап 3 из 5', 'Пошаговый чек-лист'],
@@ -482,7 +484,7 @@
     groupChecklist: defaultGroupChecklist(),
     notes: '',
     ui: {
-      page: 'shipment', interfaceMode: 'classic', currentSku: 0, checkStep: 0, checklistMode: 'group', defectSearch: '', defectSeverity: 'all',
+      page: 'home', interfaceMode: 'classic', currentSku: 0, checkStep: 0, checklistMode: 'group', defectSearch: '', defectSeverity: 'all',
       notesOpen: false, notesPinned: true, notesMinimized: false, notesPosition: null,
       expandedCompletedSections: {},
     },
@@ -502,6 +504,7 @@
   const armImportWorkerPending = new Map();
   let armImportFallbackIndex = null;
   let armImportSession = { fileName: '', loaded: false, loading: false, summary: null, requestNumber: '', mode: 'Онлайн', rows: [], warnings: [] };
+  let dayPlanImportSession = { selectedRcs: [], fileName: '', loading: false, preview: null, warnings: [] };
 
   const appShell = document.querySelector('.app-shell');
   const mobileNav = document.querySelector('.mobile-nav');
@@ -582,6 +585,7 @@
     writeUserSession(currentUser);
     if (!policyAlreadyAccepted) savePolicyAcceptance(dpId);
     updatePolicyConsentUI(); if (errorEl) errorEl.textContent = '';
+    state.ui.page = 'home';
     ensureCurrentShift(); setAuthenticated(true);
     toast(`Рабочая сессия ${dpId} открыта. ID подставлен во все чек-листы.`, 'success', 5200);
   }
@@ -705,6 +709,255 @@
       rcs: new Set(entries.map(item => item.rc).filter(Boolean)).size,
       suppliers: new Set(entries.map(item => item.supplier).filter(Boolean)).size,
     };
+  }
+
+  function loadDayPlanStore() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(DAY_PLAN_KEY) || 'null');
+      if (parsed && typeof parsed === 'object' && parsed.users && typeof parsed.users === 'object') return parsed;
+    } catch (_) {}
+    return { version: 1, users: {} };
+  }
+  let dayPlanStore = loadDayPlanStore();
+  function saveDayPlanStore() {
+    try { localStorage.setItem(DAY_PLAN_KEY, JSON.stringify(dayPlanStore)); }
+    catch (error) { console.warn('Не удалось сохранить план РЦ', error); }
+  }
+  function getDayPlanUser(create = false) {
+    const id = currentUser?.dpId;
+    if (!id) return null;
+    if (!dayPlanStore.users[id] && create) dayPlanStore.users[id] = { selectedRcs: [], days: {} };
+    return dayPlanStore.users[id] || null;
+  }
+  function getDayPlan(date = currentUser?.workDate, create = false) {
+    const user = getDayPlanUser(create);
+    if (!user || !date) return null;
+    if (!user.days) user.days = {};
+    if (!user.days[date] && create) user.days[date] = { workDate: date, requests: [], fileName: '', importedAt: '' };
+    return user.days[date] || null;
+  }
+  function getSelectedPlanRcs() { return [...(getDayPlanUser(false)?.selectedRcs || [])]; }
+  function setSelectedPlanRcs(values = []) {
+    const user = getDayPlanUser(true);
+    user.selectedRcs = [...new Set(values.map(value => String(value || '').trim()).filter(Boolean))];
+    saveDayPlanStore();
+  }
+  function planRequestKey(item) {
+    return `${normalizeShiftMatchValue(item?.requestNumber)}::${normalizeShiftMatchValue(item?.rc)}`;
+  }
+  function dayPlanStats(plan = getDayPlan(currentUser?.workDate, false)) {
+    const requests = Array.isArray(plan?.requests) ? plan.requests : [];
+    const statuses = requests.map(getDayPlanRequestStatus);
+    return {
+      requests: requests.length,
+      positions: requests.reduce((sum, item) => sum + (Number(item.productCount) || 0), 0),
+      rcs: new Set(requests.map(item => item.rc).filter(Boolean)).size,
+      suppliers: new Set(requests.map(item => item.supplier).filter(Boolean)).size,
+      completed: statuses.filter(item => item === 'done').length,
+      active: statuses.filter(item => item === 'active').length,
+    };
+  }
+  function getDayPlanRequestStatus(item) {
+    const shift = getCurrentShift(false);
+    if (findShiftEntryIndex(shift, item) >= 0) return 'done';
+    const match = workspace.checklists.find(checklist => normalizeShiftMatchValue(checklist?.shipment?.id) === normalizeShiftMatchValue(item?.requestNumber) && (!item?.rc || normalizeShiftMatchValue(checklist?.shipment?.rc) === normalizeShiftMatchValue(item?.rc)));
+    if (match) {
+      const progress = getCompletion(match);
+      if (progress.percent > 0 || String(match.shipment?.id || '').trim()) return 'active';
+    }
+    return 'planned';
+  }
+  function dayPlanStatusCopy(status) {
+    if (status === 'done') return ['Готово', 'done'];
+    if (status === 'active') return ['В работе', 'active'];
+    return ['Ожидается', 'planned'];
+  }
+  function mergeDayPlanRequests(requests = [], { fileName = '' } = {}) {
+    const plan = getDayPlan(currentUser?.workDate, true);
+    const byKey = new Map((plan.requests || []).map(item => [planRequestKey(item), item]));
+    let added = 0; let updated = 0;
+    requests.forEach(item => {
+      const key = planRequestKey(item);
+      if (!key || key.startsWith('::')) return;
+      const existing = byKey.get(key);
+      if (existing) {
+        Object.assign(existing, item, { id: existing.id || item.id, updatedAt: new Date().toISOString() });
+        updated += 1;
+      } else {
+        const next = { id: globalThis.crypto?.randomUUID?.() || `plan-${Date.now()}-${Math.random()}`, ...item, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+        plan.requests.push(next); byKey.set(key, next); added += 1;
+      }
+    });
+    if (fileName) { plan.fileName = fileName; plan.importedAt = new Date().toISOString(); }
+    saveDayPlanStore();
+    return { added, updated, total: plan.requests.length };
+  }
+  function removeDayPlanRequest(id) {
+    const plan = getDayPlan(currentUser?.workDate, false);
+    if (!plan) return;
+    const index = plan.requests.findIndex(item => item.id === id);
+    if (index < 0) return;
+    const item = plan.requests[index];
+    if (!confirm(`Убрать заявку «${item.requestNumber || 'без номера'}» из плана на день?`)) return;
+    plan.requests.splice(index, 1); saveDayPlanStore(); render();
+    toast('Заявка удалена из плана.', 'success');
+  }
+  function normalizePlanRc(value) { return normalizeRcSearch(value); }
+  async function parseDayPlanExcel(file, selectedRcs, workDate) {
+    if (!globalThis.ExcelJS) throw new Error('Не загрузился модуль ExcelJS.');
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(await file.arrayBuffer());
+    const required = ['requestNumber', 'rc', 'supplier', 'code', 'name'];
+    let detected = null;
+    workbook.worksheets.forEach(worksheet => {
+      const maxHeaderRow = Math.min(25, Math.max(1, worksheet.rowCount || 1));
+      for (let rowNumber = 1; rowNumber <= maxHeaderRow; rowNumber += 1) {
+        const headerMap = new Map();
+        worksheet.getRow(rowNumber).eachCell({ includeEmpty: true }, (cell, column) => {
+          const header = armNormalizeHeader(armPlainValue(cell.value));
+          if (header && !headerMap.has(header)) headerMap.set(header, column);
+        });
+        const columns = {};
+        Object.entries(ARM_IMPORT_FIELDS).forEach(([field, aliases]) => {
+          const alias = aliases.map(armNormalizeHeader).find(item => headerMap.has(item));
+          columns[field] = alias ? headerMap.get(alias) : 0;
+        });
+        const requiredScore = required.filter(field => columns[field]).length;
+        const optionalScore = Object.values(columns).filter(Boolean).length;
+        const score = requiredScore * 100 + optionalScore;
+        if (!detected || score > detected.score) detected = { worksheet, columns, headerRow: rowNumber, score };
+      }
+    });
+    const worksheet = detected?.worksheet;
+    const columns = detected?.columns || {};
+    if (!worksheet) throw new Error('В Excel не найден рабочий лист.');
+    const missing = required.filter(field => !columns[field]);
+    if (missing.length) throw new Error(`Не удалось определить выгрузку АРМ. Не найдены колонки: ${missing.join(', ')}.`);
+    const selectedSet = new Set((selectedRcs || []).map(normalizePlanRc));
+    const grouped = new Map();
+    let rowsTotal = 0; let rowsSelectedRc = 0; let rowsOtherDate = 0; let rowsNoDate = 0;
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber <= detected.headerRow) return;
+      rowsTotal += 1;
+      const requestNumber = armText(armPlainValue(row.getCell(columns.requestNumber).value));
+      const rc = armText(armPlainValue(row.getCell(columns.rc).value));
+      if (!requestNumber || !rc || (selectedSet.size && !selectedSet.has(normalizePlanRc(rc)))) return;
+      rowsSelectedRc += 1;
+      const arrivalRaw = columns.arrivalDate ? armPlainValue(row.getCell(columns.arrivalDate).value) : '';
+      const arrivalDate = armDateInput(arrivalRaw);
+      if (arrivalDate && workDate && arrivalDate !== workDate) { rowsOtherDate += 1; return; }
+      if (!arrivalDate) rowsNoDate += 1;
+      const supplier = armText(armPlainValue(row.getCell(columns.supplier).value));
+      const code = armText(armPlainValue(row.getCell(columns.code).value));
+      const name = armText(armPlainValue(row.getCell(columns.name).value));
+      const key = `${normalizeShiftMatchValue(requestNumber)}::${normalizeShiftMatchValue(rc)}`;
+      if (!grouped.has(key)) grouped.set(key, { requestNumber, rc, supplier, plannedDate: arrivalDate || workDate || '', source: 'arm-plan', products: [], productCount: 0 });
+      const item = grouped.get(key);
+      if (!item.supplier && supplier) item.supplier = supplier;
+      item.products.push({ code, name });
+      item.productCount += 1;
+    });
+    const requests = [...grouped.values()].sort((a, b) => a.rc.localeCompare(b.rc, 'ru') || a.supplier.localeCompare(b.supplier, 'ru') || a.requestNumber.localeCompare(b.requestNumber, 'ru'));
+    return {
+      requests,
+      summary: { sheetName: worksheet.name, rowsTotal, rowsSelectedRc, rowsOtherDate, rowsNoDate, requests: requests.length, positions: requests.reduce((sum, item) => sum + item.productCount, 0) },
+    };
+  }
+  function planRcCheckboxes(selected = []) {
+    const selectedSet = new Set(selected.map(normalizePlanRc));
+    return RC_OPTIONS.map(item => `<label class="plan-rc-option"><input type="checkbox" data-plan-rc value="${escapeAttr(item.name)}" ${selectedSet.has(normalizePlanRc(item.name)) ? 'checked' : ''}><span><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(formatMskOffset(item.mskOffset))}</small></span></label>`).join('');
+  }
+  function openDayPlanImportModal() {
+    const selected = getSelectedPlanRcs();
+    dayPlanImportSession = { selectedRcs: selected, fileName: '', loading: false, preview: null, warnings: [] };
+    renderDayPlanImportModal();
+  }
+  function renderDayPlanImportModal() {
+    const body = document.getElementById('modalBody'); const footer = document.getElementById('modalFooter');
+    if (!body || !footer) return;
+    document.getElementById('modalTitle').textContent = 'План РЦ на рабочий день';
+    const preview = dayPlanImportSession.preview;
+    body.innerHTML = `<div class="day-plan-import-shell">
+      <section class="plan-import-step"><div class="plan-import-step-head"><span>01</span><div><strong>Выберите ваши РЦ</strong><small>Выбор сохранится для ДП ${escapeHtml(currentUser?.dpId || '')} и будет использоваться при следующих выгрузках.</small></div></div><label class="plan-rc-search"><span>⌕</span><input class="input" id="planRcSearch" type="search" placeholder="Найти РЦ"></label><div class="plan-rc-grid" id="planRcGrid">${planRcCheckboxes(dayPlanImportSession.selectedRcs)}</div></section>
+      <section class="plan-import-step"><div class="plan-import-step-head"><span>02</span><div><strong>Загрузите Excel из АРМ</strong><small>Будут отобраны только выбранные РЦ и заявки с датой прибытия ${escapeHtml(formatShiftDate(currentUser?.workDate))}.</small></div></div><label class="plan-file-drop ${dayPlanImportSession.loading ? 'is-loading' : ''}"><input id="dayPlanFile" type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ${dayPlanImportSession.selectedRcs.length ? '' : 'disabled'}><span class="plan-file-icon">X</span><strong>${escapeHtml(dayPlanImportSession.loading ? 'Читаем выгрузку…' : (dayPlanImportSession.fileName || 'Выберите Excel-файл'))}</strong><small>Файл обрабатывается локально в браузере.</small></label></section>
+      ${preview ? `<section class="plan-import-preview"><div class="section-head"><div><h3 class="card-title">Что найдено на ${escapeHtml(formatShiftDate(currentUser?.workDate))}</h3><p class="card-subtitle">Лист «${escapeHtml(preview.summary.sheetName || '')}» · выбрано ${dayPlanImportSession.selectedRcs.length} РЦ</p></div><span class="shift-count-badge">${preview.summary.requests} заявок</span></div><div class="plan-preview-kpis"><div><span>Заявки</span><strong>${preview.summary.requests}</strong></div><div><span>ТП</span><strong>${preview.summary.positions}</strong></div><div><span>Строки выбранных РЦ</span><strong>${preview.summary.rowsSelectedRc}</strong></div></div>${preview.requests.length ? `<div class="plan-preview-list">${preview.requests.slice(0, 12).map(item => `<article><strong>${escapeHtml(item.requestNumber)}</strong><span>${escapeHtml(item.rc)}</span><small>${escapeHtml(item.supplier || 'Поставщик не указан')} · ${item.productCount} ТП</small></article>`).join('')}</div>` : '<div class="shift-empty compact"><span>0</span><strong>На выбранную дату заявок не найдено</strong><p>Проверьте РЦ или загрузите другую выгрузку.</p></div>'}</section>` : ''}
+      ${(dayPlanImportSession.warnings || []).length ? `<div class="issue-list">${dayPlanImportSession.warnings.map(item => `<div class="issue">${escapeHtml(item)}</div>`).join('')}</div>` : ''}
+    </div>`;
+    footer.innerHTML = `<button class="button button-ghost" id="dayPlanCancel" type="button">Отмена</button>${preview?.requests?.length ? '<button class="button button-primary" id="dayPlanApply" type="button">Добавить в план дня</button>' : ''}`;
+    modalBackdrop.hidden = false;
+    document.getElementById('dayPlanCancel').onclick = closeModal;
+    document.getElementById('planRcSearch')?.addEventListener('input', event => {
+      const q = normalizePlanRc(event.target.value);
+      document.querySelectorAll('.plan-rc-option').forEach(label => { label.hidden = Boolean(q) && !normalizePlanRc(label.textContent).includes(q); });
+    });
+    document.querySelectorAll('[data-plan-rc]').forEach(input => input.addEventListener('change', () => {
+      dayPlanImportSession.selectedRcs = [...document.querySelectorAll('[data-plan-rc]:checked')].map(el => el.value);
+      setSelectedPlanRcs(dayPlanImportSession.selectedRcs);
+      dayPlanImportSession.preview = null; dayPlanImportSession.fileName = ''; dayPlanImportSession.warnings = [];
+      renderDayPlanImportModal();
+    }));
+    document.getElementById('dayPlanFile')?.addEventListener('change', async event => {
+      const file = event.target.files?.[0]; if (!file) return;
+      dayPlanImportSession.loading = true; dayPlanImportSession.fileName = file.name; dayPlanImportSession.preview = null; dayPlanImportSession.warnings = [];
+      renderDayPlanImportModal();
+      try {
+        const previewResult = await parseDayPlanExcel(file, dayPlanImportSession.selectedRcs, currentUser?.workDate);
+        dayPlanImportSession.preview = previewResult;
+        const warnings = [];
+        if (previewResult.summary.rowsOtherDate) warnings.push(`${previewResult.summary.rowsOtherDate} строк других дат не включены в сегодняшний план.`);
+        if (previewResult.summary.rowsNoDate) warnings.push(`${previewResult.summary.rowsNoDate} строк без даты прибытия включены в план текущего дня.`);
+        dayPlanImportSession.warnings = warnings;
+      } catch (error) { dayPlanImportSession.warnings = [error?.message || String(error)]; }
+      dayPlanImportSession.loading = false; renderDayPlanImportModal();
+    });
+    document.getElementById('dayPlanApply')?.addEventListener('click', () => {
+      const requests = dayPlanImportSession.preview?.requests || [];
+      if (!requests.length) return;
+      setSelectedPlanRcs(dayPlanImportSession.selectedRcs);
+      const result = mergeDayPlanRequests(requests, { fileName: dayPlanImportSession.fileName });
+      closeModal(); render();
+      toast(`План обновлён: ${result.added} новых, ${result.updated} обновлено.`, 'success', 5200);
+    });
+  }
+  function openManualDayPlanModal() {
+    const selectedRcs = getSelectedPlanRcs();
+    const body = document.getElementById('modalBody'); const footer = document.getElementById('modalFooter');
+    document.getElementById('modalTitle').textContent = 'Добавить заявку вручную';
+    const rcOptions = (selectedRcs.length ? selectedRcs : RC_OPTIONS.map(item => item.name)).map(name => `<option value="${escapeAttr(name)}">${escapeHtml(name)}</option>`).join('');
+    body.innerHTML = `<div class="manual-plan-form"><div class="form-grid"><div class="field"><label>Номер заявки <span class="required">*</span></label><input class="input" id="manualPlanRequest" type="text" placeholder="23000Y8995700"></div><div class="field"><label>РЦ <span class="required">*</span></label><select class="select" id="manualPlanRc"><option value="">Выберите РЦ</option>${rcOptions}</select></div><div class="field field-span-2"><label>Поставщик</label><input class="input" id="manualPlanSupplier" type="text" placeholder="Наименование поставщика"></div><div class="field"><label>Количество ТП</label><input class="input" id="manualPlanCount" type="number" min="1" max="999" value="1"></div><div class="field"><label>Дата прибытия</label><input class="input" id="manualPlanDate" type="date" value="${escapeAttr(currentUser?.workDate || todayInput())}"></div></div><div class="notice">Ручная заявка попадёт в план выбранной даты. Товарные позиции можно заполнить уже при начале приёмки.</div></div>`;
+    footer.innerHTML = '<button class="button button-ghost" id="manualPlanCancel" type="button">Отмена</button><button class="button button-primary" id="manualPlanSave" type="button">Добавить заявку</button>';
+    modalBackdrop.hidden = false;
+    document.getElementById('manualPlanCancel').onclick = closeModal;
+    document.getElementById('manualPlanSave').onclick = () => {
+      const requestNumber = String(document.getElementById('manualPlanRequest')?.value || '').trim();
+      const rc = String(document.getElementById('manualPlanRc')?.value || '').trim();
+      const supplier = String(document.getElementById('manualPlanSupplier')?.value || '').trim();
+      const productCount = Math.max(1, Number(document.getElementById('manualPlanCount')?.value) || 1);
+      const plannedDate = String(document.getElementById('manualPlanDate')?.value || currentUser?.workDate || todayInput()).trim();
+      if (!requestNumber || !rc) { toast('Укажите номер заявки и РЦ.', 'error'); return; }
+      if (plannedDate !== currentUser?.workDate) { toast('Для текущего экрана дата должна совпадать с датой рабочей сессии.', 'error'); return; }
+      mergeDayPlanRequests([{ requestNumber, rc, supplier, productCount, plannedDate, products: [], source: 'manual' }]);
+      closeModal(); render(); toast('Заявка добавлена в план дня.', 'success');
+    };
+  }
+  function startDayPlanRequest(id) {
+    const plan = getDayPlan(currentUser?.workDate, false); const item = plan?.requests?.find(entry => entry.id === id);
+    if (!item) return;
+    const existing = workspace.checklists.find(checklist => normalizeShiftMatchValue(checklist.shipment?.id) === normalizeShiftMatchValue(item.requestNumber) && normalizeShiftMatchValue(checklist.shipment?.rc) === normalizeShiftMatchValue(item.rc));
+    if (existing) { switchChecklist(existing.id); setPage('shipment'); return; }
+    const currentBlank = !String(state.shipment?.id || '').trim() && !String(state.shipment?.rc || '').trim() && state.skus?.length === 1 && !String(state.skus[0]?.code || '').trim() && !String(state.skus[0]?.name || '').trim();
+    if (!currentBlank && workspace.checklists.length >= MAX_CHECKLISTS) { toast(`Открыто максимум ${MAX_CHECKLISTS} РЦ. Закройте лишний чек-лист.`, 'error'); return; }
+    const next = currentBlank ? state : defaultState();
+    next.ui.page = 'shipment';
+    next.shipment.id = item.requestNumber || '';
+    next.shipment.rc = item.rc || '';
+    next.shipment.date = currentUser?.workDate || item.plannedDate || todayInput();
+    next.shipment.supplier = item.supplier || '';
+    next.shipment.dpId = currentUser?.dpId || '';
+    const products = Array.isArray(item.products) ? item.products.filter(product => product.code || product.name) : [];
+    if (products.length) next.skus = products.map(product => { const sku = defaultSku(); sku.code = product.code || ''; sku.name = product.name || ''; sku.importMeta = { source: 'day-plan', requestNumber: item.requestNumber, importedAt: new Date().toISOString() }; return sku; });
+    if (!currentBlank) workspace.checklists.push(next); state = next; workspace.activeChecklistId = next.id; persistWorkspace(); render();
+    toast(`Заявка ${item.requestNumber} открыта для приёмки.`, 'success');
   }
 
   function normalizeRcSearch(value) {
@@ -944,7 +1197,7 @@
       id: raw.id || base.id,
       version: 25,
       shipment: { ...base.shipment, ...(raw.shipment || {}), dpId: currentUser?.dpId || raw.shipment?.dpId || '', format: ['Онлайн', 'Архив'].includes(raw.shipment?.format) ? raw.shipment.format : 'Онлайн' },
-      skus: Array.isArray(raw.skus) && raw.skus.length ? raw.skus.slice(0, MAX_SKU).map(migrateSku) : [defaultSku()],
+      skus: Array.isArray(raw.skus) && raw.skus.length ? raw.skus.map(migrateSku) : [defaultSku()],
       groupChecklist: (() => {
         const saved = raw.groupChecklist && typeof raw.groupChecklist === 'object' ? raw.groupChecklist : {};
         return {
@@ -961,7 +1214,7 @@
         const expandedCompletedSections = savedUi.expandedCompletedSections && typeof savedUi.expandedCompletedSections === 'object'
           ? savedUi.expandedCompletedSections
           : {};
-        return { ...base.ui, ...savedUi, expandedCompletedSections, page: PAGE_META[raw.ui?.page] ? raw.ui.page : 'shipment', interfaceMode: ['classic', 'operational'].includes(savedUi.interfaceMode) ? savedUi.interfaceMode : 'classic', checklistMode: ['group', 'individual'].includes(savedUi.checklistMode) ? savedUi.checklistMode : (raw.groupChecklist?.appliedAt || (!raw.groupChecklist && Array.isArray(raw.skus) && raw.skus.some(sku => Object.keys(sku?.checklist || {}).length)) ? 'individual' : 'group') };
+        return { ...base.ui, ...savedUi, expandedCompletedSections, page: PAGE_META[raw.ui?.page] ? raw.ui.page : 'home', interfaceMode: ['classic', 'operational'].includes(savedUi.interfaceMode) ? savedUi.interfaceMode : 'classic', checklistMode: ['group', 'individual'].includes(savedUi.checklistMode) ? savedUi.checklistMode : (raw.groupChecklist?.appliedAt || (!raw.groupChecklist && Array.isArray(raw.skus) && raw.skus.some(sku => Object.keys(sku?.checklist || {}).length)) ? 'individual' : 'group') };
       })(),
     };
   }
@@ -1589,7 +1842,7 @@
 
   function renderOperationalQueue() {
     const ready = state.skus.filter((sku, index) => ['ready', 'ready-warning'].includes(getSkuStatus(sku, index).key)).length;
-    return `<section class="operational-queue-shell"><div class="operational-queue-head"><div><span class="eyebrow">Очередь товаров</span><strong>${ready} из ${state.skus.length} готово</strong></div><button type="button" class="button button-primary button-small" data-action="add-sku" ${state.skus.length >= MAX_SKU ? 'disabled' : ''}>+ Товар</button></div><div class="operational-queue">${state.skus.map((sku, index) => {
+    return `<section class="operational-queue-shell"><div class="operational-queue-head"><div><span class="eyebrow">Очередь товаров</span><strong>${ready} из ${state.skus.length} готово</strong></div><button type="button" class="button button-primary button-small" data-action="add-sku">+ Товар</button></div><div class="operational-queue">${state.skus.map((sku, index) => {
       const status = getSkuStatus(sku, index);
       return `<button type="button" class="operational-queue-item ${index === state.ui.currentSku ? 'active' : ''}" data-action="select-sku" data-sku="${index}" data-status="${status.key}"><span class="operational-queue-index">${index + 1}</span><span class="operational-queue-copy"><strong>${escapeHtml(getSkuLabel(sku, index))}</strong><small>${escapeHtml(status.label)}</small></span><b data-operational-sku-status="${index}">${status.progress}%</b></button>`;
     }).join('')}</div></section>`;
@@ -1733,7 +1986,7 @@
 
   function setPage(page) {
     if (!PAGE_META[page]) return;
-    if (page === 'shift') state.ui.interfaceMode = 'classic';
+    if (page === 'shift' || page === 'home') state.ui.interfaceMode = 'classic';
     const previousPage = state.ui.page;
     const pageChanged = previousPage !== page;
     const direction = PAGE_ORDER.indexOf(page) >= PAGE_ORDER.indexOf(previousPage) ? 'forward' : 'back';
@@ -1756,7 +2009,9 @@
 
   function render() {
     const shiftPage = state.ui.page === 'shift';
-    const operational = isOperationalMode() && !shiftPage;
+    const homePage = state.ui.page === 'home';
+    const specialPage = shiftPage || homePage;
+    const operational = isOperationalMode() && !specialPage;
     const [stage, title] = PAGE_META[state.ui.page];
     const activeIndex = Math.max(0, workspace.checklists.findIndex(item => item.id === state.id));
     const workspaceScope = workspace.checklists.length === 1
@@ -1773,9 +2028,9 @@
     }
     if (modeLabel) modeLabel.textContent = operational ? 'Операционный' : 'Стандартный';
 
-    document.getElementById('pageEyebrow').textContent = shiftPage ? `${currentUser?.dpId || 'ДП'} · ${currentUser?.workDate || todayInput()}` : (operational ? `${workspaceScope} · быстрый режим` : `${workspaceScope} · ${stage}`);
-    document.getElementById('pageTitle').textContent = shiftPage ? 'Моя смена' : (operational ? 'Операционная приёмка' : title);
-    const workspaceToggle = document.getElementById('workspaceToggle'); if (workspaceToggle) workspaceToggle.hidden = shiftPage;
+    document.getElementById('pageEyebrow').textContent = specialPage ? `${currentUser?.dpId || 'ДП'} · ${currentUser?.workDate || todayInput()}` : (operational ? `${workspaceScope} · быстрый режим` : `${workspaceScope} · ${stage}`);
+    document.getElementById('pageTitle').textContent = homePage ? 'Главная' : (shiftPage ? 'Моя смена' : (operational ? 'Операционная приёмка' : title));
+    const workspaceToggle = document.getElementById('workspaceToggle'); if (workspaceToggle) workspaceToggle.hidden = specialPage;
     document.querySelectorAll('[data-page]').forEach(el => {
       const isActive = !operational && el.dataset.page === state.ui.page;
       el.classList.toggle('active', isActive);
@@ -1787,7 +2042,7 @@
     renderWorkspaceBar();
     const nextMarkup = operational
       ? renderOperationalWorkspace()
-      : ({ shipment: renderShipment, products: renderProducts, checklist: renderChecklist, defects: renderDefects, summary: renderSummary, shift: renderShift }[state.ui.page])();
+      : ({ home: renderHome, shipment: renderShipment, products: renderProducts, checklist: renderChecklist, defects: renderDefects, summary: renderSummary, shift: renderShift }[state.ui.page])();
     if (pageContent.innerHTML !== nextMarkup) pageContent.innerHTML = nextMarkup;
     updateGlobalProgress();
     if (operational) refreshOperationalLiveValidation(state.ui.currentSku);
@@ -1797,6 +2052,7 @@
 
   function pageHeading(title, description, actions = '') {
     const copy = {
+      home: ['00 / Рабочий день', 'План на сегодня', 'Выберите режим работы: начать онлайн-приёмку сразу или загрузить план ваших РЦ из выгрузки АРМ.'],
       shipment: ['01 / Приёмка', 'Данные поставки', 'Заполните реквизиты и время начала. Дальше — товары и контроль качества.'],
       products: ['02 / Товарные позиции', 'Товары поставки', 'Каждая позиция под контролем. Добавьте товары и выберите необходимые проверки.'],
       checklist: ['03 / Контроль качества', 'Внимание к каждому шагу.', 'Общая проверка партии, затем индивидуальный контроль каждой позиции.'],
@@ -1806,6 +2062,43 @@
     }[state.ui.page] || ['', title, description];
     return `<div class="page-heading"><div><div class="page-heading-kicker"><i></i>${escapeHtml(copy[0])}</div><h2>${escapeHtml(copy[1])}</h2><p>${escapeHtml(copy[2])}</p></div><div class="page-heading-actions">${actions}</div></div>`;
   }
+  function renderHome() {
+    const plan = getDayPlan(currentUser?.workDate, false);
+    const requests = Array.isArray(plan?.requests) ? [...plan.requests] : [];
+    const selectedRcs = getSelectedPlanRcs();
+    const stats = dayPlanStats(plan);
+    const statusOrder = { active: 0, planned: 1, done: 2 };
+    requests.sort((a, b) => {
+      const sa = getDayPlanRequestStatus(a); const sb = getDayPlanRequestStatus(b);
+      return (statusOrder[sa] - statusOrder[sb]) || String(a.rc || '').localeCompare(String(b.rc || ''), 'ru') || String(a.requestNumber || '').localeCompare(String(b.requestNumber || ''), 'ru');
+    });
+    const requestMarkup = requests.map(item => {
+      const status = getDayPlanRequestStatus(item); const [statusLabel, statusClass] = dayPlanStatusCopy(status);
+      const products = Array.isArray(item.products) ? item.products.filter(product => product.code || product.name) : [];
+      const productPreview = products.slice(0, 3).map(product => product.name || product.code).filter(Boolean);
+      return `<article class="day-plan-request ${statusClass}">
+        <div class="day-plan-request-status"><span class="plan-status-dot"></span><strong>${escapeHtml(statusLabel)}</strong><small>${item.source === 'manual' ? 'Вручную' : 'АРМ'}</small></div>
+        <div class="day-plan-request-main"><div class="day-plan-request-title"><strong>${escapeHtml(item.requestNumber || 'Без номера')}</strong><span>${Number(item.productCount) || 0} ТП</span></div><div class="day-plan-request-meta"><span>${escapeHtml(item.rc || 'РЦ не указан')}</span><i>•</i><span>${escapeHtml(item.supplier || 'Поставщик не указан')}</span></div>${productPreview.length ? `<div class="day-plan-products">${productPreview.map(name => `<span>${escapeHtml(name)}</span>`).join('')}${products.length > 3 ? `<em>+${products.length - 3}</em>` : ''}</div>` : '<div class="day-plan-products is-empty"><span>Состав товаров будет заполнен при приёмке</span></div>'}</div>
+        <div class="day-plan-request-actions">${status === 'done' ? '<button class="button button-secondary button-small" data-page="shift">В журнал</button>' : `<button class="button button-primary button-small" data-action="start-day-plan-request" data-plan-id="${escapeAttr(item.id)}">${status === 'active' ? 'Продолжить' : 'Начать приёмку'}</button>`}<button class="icon-button plan-remove" data-action="remove-day-plan-request" data-plan-id="${escapeAttr(item.id)}" title="Убрать из плана" aria-label="Убрать заявку ${escapeAttr(item.requestNumber || '')} из плана">×</button></div>
+      </article>`;
+    }).join('');
+    const rcChips = selectedRcs.length ? selectedRcs.map(rc => `<span>${escapeHtml(rc)}</span>`).join('') : '<em>РЦ ещё не выбраны</em>';
+    return `${pageHeading('Главная', 'Выберите способ работы на сегодня.')}
+      <div class="home-workspace">
+        <section class="home-welcome card"><div><span class="eyebrow">ДП ${escapeHtml(currentUser?.dpId || '')} · ${escapeHtml(formatShiftDate(currentUser?.workDate))}</span><h3>Как работаем сегодня?</h3><p>Можно сразу вести заявки онлайн или заранее загрузить выгрузку АРМ и видеть весь ожидаемый объём по вашим РЦ.</p></div><div class="home-welcome-mark"><span>ДП</span></div></section>
+        <div class="home-mode-grid">
+          <article class="home-mode-card online"><div class="home-mode-icon">→</div><span class="eyebrow">БЫСТРЫЙ СТАРТ</span><h3>Проводить всё онлайн</h3><p>Открыть обычную приёмку без предварительного плана. Заявку и товары можно заполнить вручную или импортировать по номеру из АРМ.</p><button class="button button-primary" data-action="start-online-work">Перейти к приёмке</button></article>
+          <article class="home-mode-card plan"><div class="home-mode-icon">▦</div><span class="eyebrow">ПЛАН РЦ</span><h3>Загрузить мои РЦ</h3><p>Сначала выберите распределительные центры, затем загрузите Excel из АРМ. Система соберёт заявки и товарные позиции на текущую дату.</p><button class="button button-secondary" data-action="open-day-plan-import">${requests.length ? 'Обновить выгрузку АРМ' : 'Выбрать РЦ и загрузить Excel'}</button></article>
+        </div>
+        <section class="day-plan-dashboard card card-pad">
+          <div class="day-plan-head"><div><span class="eyebrow">ПЛАН НА ${escapeHtml(formatShiftDate(currentUser?.workDate).toUpperCase())}</span><h3>Что ожидает менеджера сегодня</h3><p>${plan?.fileName ? `Последняя выгрузка: ${escapeHtml(plan.fileName)}` : 'Загрузите выгрузку АРМ или добавьте заявку вручную.'}</p></div><div class="day-plan-head-actions"><button class="button button-ghost" data-action="open-manual-day-plan">＋ Добавить вручную</button><button class="button button-secondary" data-action="open-day-plan-import">Импорт АРМ</button></div></div>
+          <div class="day-plan-rc-strip"><strong>Мои РЦ</strong><div>${rcChips}</div><button type="button" data-action="open-day-plan-import">Изменить</button></div>
+          <div class="day-plan-kpis"><article><span>Заявок</span><strong>${stats.requests}</strong><small>${stats.completed} завершено · ${stats.active} в работе</small></article><article><span>Товарных позиций</span><strong>${stats.positions}</strong><small>ожидаемый объём на день</small></article><article><span>РЦ</span><strong>${stats.rcs || selectedRcs.length}</strong><small>в текущем плане</small></article><article><span>Поставщиков</span><strong>${stats.suppliers}</strong><small>уникальных в заявках</small></article></div>
+          ${requestMarkup ? `<div class="day-plan-list">${requestMarkup}</div>` : `<div class="day-plan-empty"><div class="day-plan-empty-icon">▦</div><strong>План на день пока пуст</strong><p>Выберите свои РЦ и загрузите Excel из АРМ. Система сама сгруппирует строки по номеру заявки и посчитает количество товарных позиций.</p><div><button class="button button-primary" data-action="open-day-plan-import">Загрузить выгрузку АРМ</button><button class="button button-ghost" data-action="open-manual-day-plan">Добавить заявку вручную</button></div></div>`}
+        </section>
+      </div>`;
+  }
+
   function field(label, path, value, type = 'text', options = {}) {
     const required = options.required ? '<span class="required">*</span>' : '';
     const suffix = options.suffix ? `<span class="input-suffix">${escapeHtml(options.suffix)}</span>` : '';
@@ -1866,7 +2159,7 @@
 
   const ARM_IMPORT_FIELDS = {
     rowId: ['id'], requestNumber: ['номер заявки', 'номер заявки / поставки', 'номер заявки/поставки'],
-    date: ['дата проверки', 'дата приемки', 'дата приёмки'], rc: ['рц'], supplier: ['поставщик', 'ка'],
+    date: ['дата проверки', 'дата приемки', 'дата приёмки'], arrivalDate: ['дата прибытия на рц', 'плановая дата прибытия', 'дата прибытия'], rc: ['рц'], supplier: ['поставщик', 'ка'],
     code: ['код товара', 'код товара / sku', 'sku'], name: ['название товара', 'наименование товара'],
     mokk: ['мокк', 'фио мокк', 'фио мокка', 'фио мокк сотрудника', 'менеджер окк', 'фио менеджера окк', 'менеджер отдела контроля качества', 'фио менеджера отдела контроля качества', 'сотрудник окк'],
     vpt: ['температура', 'впт', 'внутриплодная температура', 'температура продукта'], sampleMass: ['м выборки кг/шт', 'масса выборки', 'масса выборки кг/шт', 'м выборки', 'выборка кг/шт'],
@@ -2165,7 +2458,6 @@
       else rows = (await armWorkerRequest('search', { requestNumber })).rows || [];
       const warnings = [];
       if (!rows.length) warnings.push(`Заявка ${requestNumber} в загруженном файле не найдена.`);
-      if (rows.length > MAX_SKU) warnings.push(`В заявке ${rows.length} товарных позиций. Текущий Excel-чек-лист поддерживает максимум ${MAX_SKU}; импорт заблокирован, чтобы не потерять товары.`);
       if (armImportSession.mode === 'Архив') {
         warnings.push(...armArchiveMappingWarnings());
         warnings.push(...armArchiveMokkWarnings(rows));
@@ -2237,7 +2529,7 @@
     document.getElementById('modalTitle').textContent = 'Импорт заявки из АРМ';
     const rows = armImportSession.rows || [];
     const first = rows[0] || {};
-    const tooMany = rows.length > MAX_SKU;
+    const tooMany = false;
     const mode = armImportSession.mode;
     body.innerHTML = `<div class="arm-import-shell">
       <div class="arm-import-mode" role="radiogroup" aria-label="Формат приёмки">
@@ -2262,7 +2554,6 @@
     document.querySelectorAll('[data-arm-mode]').forEach(button => button.addEventListener('click', () => {
       armImportSession.mode = button.dataset.armMode === 'Архив' ? 'Архив' : 'Онлайн';
       const warnings = [];
-      if (armImportSession.rows.length > MAX_SKU) warnings.push(`В заявке ${armImportSession.rows.length} товарных позиций. Текущий Excel-чек-лист поддерживает максимум ${MAX_SKU}; импорт заблокирован, чтобы не потерять товары.`);
       if (armImportSession.rows.length && armImportSession.mode === 'Архив') {
         warnings.push(...armArchiveMappingWarnings());
         warnings.push(...armArchiveMokkWarnings(armImportSession.rows));
@@ -2284,7 +2575,6 @@
   function applyArmImport() {
     const rows = armImportSession.rows || [];
     if (!rows.length) { toast('Сначала найдите заявку.', 'error'); return; }
-    if (rows.length > MAX_SKU) { toast(`В заявке больше ${MAX_SKU} товаров. Импорт остановлен без потери данных.`, 'error', 6500); return; }
     const mode = armImportSession.mode === 'Архив' ? 'Архив' : 'Онлайн';
     const first = rows[0];
     const requestNumber = armImportSession.requestNumber;
@@ -2579,10 +2869,10 @@
   }
 
   function renderProducts() {
-    return `${pageHeading('Товары и основные параметры', 'Добавьте до 12 товарных позиций. Статус каждой позиции обновляется автоматически по мере прохождения всей приёмки.', `<button class="button button-primary" data-action="add-sku" ${state.skus.length >= MAX_SKU ? 'disabled' : ''}>+ Добавить товар</button>`)}
+    return `${pageHeading('Товары и основные параметры', 'Добавляйте столько товарных позиций, сколько есть в заявке. Фиксированного лимита больше нет.', `<button class="button button-primary" data-action="add-sku">+ Добавить товар</button>`)}
       <div class="content-stack">
         ${renderProductStatusBoard()}
-        <div class="product-toolbar"><div class="notice">Статус «Готова» появится после заполнения реквизитов, чек-листа, ВПТ и итоговых масс.</div><span class="field-hint">${state.skus.length} из ${MAX_SKU} товаров</span></div>
+        <div class="product-toolbar"><div class="notice">Статус «Готова» появится после заполнения реквизитов, чек-листа, ВПТ и итоговых масс.</div><span class="field-hint">${state.skus.length} ${ruPlural(state.skus.length, 'товар', 'товара', 'товаров')} · без фиксированного лимита</span></div>
         <div class="product-list">${state.skus.map(renderProductCard).join('')}</div>
         <div class="button-row"><button class="button button-ghost" data-page="shipment">← К приёмке</button><button class="button button-primary" data-page="checklist">К чек-листу →</button></div>
       </div>`;
@@ -2858,7 +3148,7 @@
         ${renderFinalMasses()}
         <div class="kpi-grid">
           ${kpi('Готовность', `${c.percent}%`, `${c.sectionsDone} из ${c.sectionTotal} разделов`, c.percent === 100 ? 'status-good' : 'status-warn')}
-          ${kpi('Товаров', String(state.skus.length), `максимум ${MAX_SKU}`)}
+          ${kpi('Товаров', String(state.skus.length), 'без фиксированного лимита')}
           ${kpi('Чек-лист', `${stats.done}/${stats.total}`, `${stats.percent}% заполнено`, stats.percent === 100 ? 'status-good' : 'status-warn')}
           ${kpi('Дефектных единиц', displayNumber(defectTotal, 0), `${state.skus.reduce((sum, sku) => sum + sku.defects.length, 0)} записей`)}
         </div>
@@ -2892,7 +3182,7 @@
           <section class="card card-pad export-panel">
             <div class="section-head"><div><h3 class="card-title">Выгрузить Excel</h3><p class="card-subtitle">Выгружается только открытая страница — данные других РЦ не смешиваются.</p></div></div>
             <div class="export-choice export-choice-single">
-              <button class="export-button" data-action="request-export" data-export-type="new"><span><strong>Выгрузить Excel</strong><span>Проверенный рабочий шаблон для открытого РЦ</span></span><b class="export-arrow">→</b></button>
+              <button class="export-button" data-action="request-export" data-export-type="new"><span><strong>Выгрузить Excel</strong><span>Масштабируемый Excel — все товарные позиции без фиксированного лимита</span></span><b class="export-arrow">→</b></button>
             </div>
             <div class="notice" style="margin-top:14px">Имя файла: <strong>${escapeHtml(buildChecklistFilename(s))}</strong></div>
           </section>
@@ -3997,6 +4287,11 @@
     const button = event.target.closest('[data-action]');
     if (!button) return;
     const action = button.dataset.action;
+    if (action === 'start-online-work') { setPage('shipment'); return; }
+    if (action === 'open-day-plan-import') { openDayPlanImportModal(); return; }
+    if (action === 'open-manual-day-plan') { openManualDayPlanModal(); return; }
+    if (action === 'start-day-plan-request') { startDayPlanRequest(button.dataset.planId); return; }
+    if (action === 'remove-day-plan-request') { removeDayPlanRequest(button.dataset.planId); return; }
     if (action === 'export-shift-report') { exportShiftReport(); return; }
     if (action === 'delete-shift-entry') { deleteShiftEntryById(button.dataset.entryId); return; }
     if (action === 'clear-current-shift-journal') { clearCurrentShiftJournal(); return; }
@@ -4153,7 +4448,7 @@
       runAdaptiveTransition(() => { state.ui.currentSku = nextSku; scheduleSave(); render(); }, { direction, mode: 'swap' });
       return;
     }
-    if (action === 'add-sku') { if (state.skus.length < MAX_SKU) { const nextSku = defaultSku(); state.skus.push(nextSku); if (state.ui.checklistMode !== 'individual' && state.groupChecklist?.selectionInitialized) state.groupChecklist.selectedSkuIds.push(nextSku.id); state.ui.currentSku = state.skus.length - 1; scheduleSave(); render(); } }
+    if (action === 'add-sku') { const nextSku = defaultSku(); state.skus.push(nextSku); if (state.ui.checklistMode !== 'individual' && state.groupChecklist?.selectionInitialized) state.groupChecklist.selectedSkuIds.push(nextSku.id); state.ui.currentSku = state.skus.length - 1; scheduleSave(); render(); }
     if (action === 'remove-sku') { const i = Number(button.dataset.sku); if (state.skus.length > 1 && confirm(`Удалить ${getSkuLabel(state.skus[i], i)}?`)) { state.skus.splice(i, 1); state.ui.currentSku = Math.min(state.ui.currentSku, state.skus.length - 1); scheduleSave(); render(); } }
     if (action === 'move-sku') { moveSku(Number(button.dataset.sku), Number(button.dataset.delta)); }
     if (action === 'toggle-feature') { const skuIndex = Number(button.dataset.sku); const sku = state.skus[skuIndex]; const key = button.dataset.feature; if (sku && key in FEATURE_LABELS) { sku[key] = !sku[key]; if (!sku[key]) QUESTIONS.filter(q => q.feature === key).forEach(q => { delete sku.checklist[q.code]; }); scheduleSave(); button.classList.toggle('active', sku[key]); button.setAttribute('aria-pressed', String(sku[key])); updateProductAssistant(skuIndex); updateSkuStatusChrome(skuIndex); updateGlobalProgress(); if (isOperationalMode()) render(); } }
@@ -4453,11 +4748,11 @@
     const normalizedType = exportType === 'old' ? 'old' : 'new';
     const validation = getValidation();
     if (validation.errors.length) { requestExport(normalizedType); return; }
-    const label = normalizedType === 'old' ? 'старую форму' : 'новую форму';
+    const label = normalizedType === 'old' ? 'старую форму' : 'масштабируемый Excel';
     exportCancelled = false; saveNow(); const exportState = buildExportState();
     setExportLoading(true, `Проверяем способ формирования: ${label}…`, 8, `Формируем ${label}`);
     let serverError = null;
-    if (location.protocol !== 'file:') {
+    if (normalizedType === 'old' && location.protocol !== 'file:') {
       const controller = new AbortController(); activeExportAbortController = controller; const timer = setTimeout(() => controller.abort(), 25000);
       try {
         setExportLoading(true, `Заполняем ${label}…`, 38, `Формируем ${label}`);
@@ -4522,6 +4817,262 @@
     return question.row >= 29 ? question.row - 1 : question.row;
   }
 
+  function buildUnlimitedWorkbookLayout(workbook) {
+    const RED = 'FFE30613';
+    const DARK = 'FF26262A';
+    const MUTED = 'FF6B6B73';
+    const LIGHT = 'FFF5F5F7';
+    const LINE = 'FFE3E3E7';
+    const WHITE = 'FFFFFFFF';
+
+    const makeTitle = (sheet, range, title) => {
+      sheet.mergeCells(range);
+      const cell = sheet.getCell(range.split(':')[0]);
+      cell.value = title;
+      cell.font = { name: 'Arial', size: 15, bold: true, color: { argb: WHITE } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: RED } };
+      cell.alignment = { vertical: 'middle', horizontal: 'left' };
+      sheet.getRow(cell.row).height = 30;
+    };
+    const styleHeader = (row, columnCount) => {
+      row.height = 32;
+      for (let col = 1; col <= columnCount; col += 1) {
+        const cell = row.getCell(col);
+        cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: WHITE } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+        cell.border = { bottom: { style: 'thin', color: { argb: LINE } }, right: { style: 'thin', color: { argb: 'FF4B4B50' } } };
+      }
+    };
+    const styleMetaLabel = cell => {
+      cell.font = { name: 'Arial', size: 8, bold: true, color: { argb: MUTED } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT } };
+      cell.alignment = { vertical: 'middle', wrapText: true };
+    };
+    const styleMetaValue = cell => {
+      cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: DARK } };
+      cell.alignment = { vertical: 'middle', wrapText: true };
+    };
+
+    const ws = workbook.addWorksheet('Чек лист_ДП_Отчет', { properties: { defaultRowHeight: 20 } });
+    makeTitle(ws, 'A1:S1', 'Магнит · Дистанционная приёмка · Чек-лист без ограничения количества ТП');
+    ws.mergeCells('A2:S2');
+    ws.getCell('A2').value = 'Масштабируемая форма: каждая товарная позиция занимает отдельную строку. Полный контроль вынесен на лист «Контроль_по_позициям».';
+    ws.getCell('A2').font = { name: 'Arial', size: 9, italic: true, color: { argb: MUTED } };
+    ws.getCell('A2').alignment = { vertical: 'middle', wrapText: true };
+    ws.getRow(2).height = 28;
+
+    const metaPairs = [
+      ['A3','Номер заявки','B3'], ['C3','РЦ','D3'], ['E3','Дата приёмки','F3'], ['G3','Поставщик','H3'],
+      ['I3','Формат','J3'], ['K3','МОКК','L3'], ['M3','ДП (ID)','N3'], ['O3','Подключение','P3'], ['Q3','Начало приёмки','R3'],
+      ['A4','Окончание приёмки','B4'], ['C4','Окончание отчёта','D4'],
+    ];
+    metaPairs.forEach(([labelAddr, label, valueAddr]) => {
+      ws.getCell(labelAddr).value = label;
+      styleMetaLabel(ws.getCell(labelAddr));
+      styleMetaValue(ws.getCell(valueAddr));
+    });
+    ws.getRow(3).height = 25; ws.getRow(4).height = 25;
+
+    ws.getRow(6).values = ['№','Номер заявки','РЦ','Дата приёмки','Поставщик','Код товара / SKU','Наименование товара','Формат','МОКК','ДП (ID)','ВПТ','Масса выборки, кг','Брак, кг','Нестандарт, кг','Осыпь, кг','Некалибр, кг','Brix','Ошибка АРМ','Комментарий'];
+    styleHeader(ws.getRow(6), 19);
+    const summaryWidths = [6,18,25,15,25,19,36,14,20,12,11,17,13,16,13,15,20,14,34];
+    summaryWidths.forEach((width, index) => { ws.getColumn(index + 1).width = width; });
+    ws.views = [{ state: 'frozen', ySplit: 6 }];
+    ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
+
+    const controlWs = workbook.addWorksheet('Контроль_по_позициям', { properties: { defaultRowHeight: 20 } });
+    makeTitle(controlWs, 'A1:I1', 'Подробный контроль по каждой товарной позиции');
+    controlWs.mergeCells('A2:I2');
+    controlWs.getCell('A2').value = 'Каждый пункт чек-листа записывается отдельной строкой — количество товарных позиций не ограничено схемой файла.';
+    controlWs.getCell('A2').font = { name: 'Arial', size: 9, italic: true, color: { argb: MUTED } };
+    controlWs.getCell('A2').alignment = { vertical: 'middle', wrapText: true };
+    controlWs.getRow(3).values = ['№ ТП','Код товара / SKU','Наименование товара','Этап','Код пункта','Контроль','Результат','Время','Комментарий'];
+    styleHeader(controlWs.getRow(3), 9);
+    [8,19,36,26,12,52,20,12,44].forEach((width, index) => { controlWs.getColumn(index + 1).width = width; });
+    controlWs.views = [{ state: 'frozen', ySplit: 3 }];
+
+    const defectsWs = workbook.addWorksheet('Дефекты', { properties: { defaultRowHeight: 20 } });
+    makeTitle(defectsWs, 'A1:H1', 'Зафиксированные дефекты по товарным позициям');
+    defectsWs.mergeCells('A2:H2');
+    defectsWs.getCell('A2').value = 'Строки формируются только для реально заполненных дефектов.';
+    defectsWs.getCell('A2').font = { name: 'Arial', size: 9, italic: true, color: { argb: MUTED } };
+    defectsWs.getRow(3).values = ['№ ТП','Код товара / SKU','Наименование товара','Тип дефекта','Визуальная оценка','Количество единиц','Комментарий','№ заявки'];
+    styleHeader(defectsWs.getRow(3), 8);
+    [8,19,36,30,24,19,44,20].forEach((width, index) => { defectsWs.getColumn(index + 1).width = width; });
+    defectsWs.views = [{ state: 'frozen', ySplit: 3 }];
+
+    const metaWs = workbook.addWorksheet('Тех_метки_для_Python');
+    metaWs.state = 'hidden';
+    const metadataRows = [
+      ['template_id','dp.checklist.acceptance.unlimited'],
+      ['template_version','v97-unlimited'],
+      ['schema_version','2.0-unlimited'],
+      ['sku_capacity','unlimited'],
+      ['layout_mode','vertical-unlimited'],
+      ['summary_sheet','Чек лист_ДП_Отчет'],
+      ['control_sheet','Контроль_по_позициям'],
+      ['defects_sheet','Дефекты'],
+    ];
+    metadataRows.forEach((values, index) => { metaWs.getRow(index + 1).values = values; });
+    metaWs.getColumn(1).width = 24; metaWs.getColumn(2).width = 42;
+    return workbook;
+  }
+
+  function applyUnlimitedExcelRowStyle(row, columnCount, alternate = false) {
+    for (let col = 1; col <= columnCount; col += 1) {
+      const cell = row.getCell(col);
+      cell.alignment = { vertical: 'top', wrapText: true };
+      cell.font = { name: 'Arial', size: 9, color: { argb: 'FF222222' } };
+      cell.border = {
+        bottom: { style: 'thin', color: { argb: 'FFD9D9D9' } },
+        right: { style: 'thin', color: { argb: 'FFF0F0F0' } },
+      };
+      if (alternate) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFAFAFA' } };
+    }
+  }
+
+  function unlimitedQuestionResult(sku, question) {
+    const answer = sku?.checklist?.[question.code] || {};
+    if (!isApplicable(sku, question) || answer.status === 'na') return 'не контролируется';
+    if (question.type === 'number') {
+      const value = numberOrBlank(answer.value);
+      return value === '' ? '' : value;
+    }
+    return localizedStatus(answer.status);
+  }
+
+  function fillUnlimitedTemplateWorkbook(workbook, exportState) {
+    const ws = workbook.getWorksheet('Чек лист_ДП_Отчет') || workbook.worksheets[0];
+    const controlWs = workbook.getWorksheet('Контроль_по_позициям');
+    const defectsWs = workbook.getWorksheet('Дефекты');
+    const metaWs = workbook.getWorksheet('Тех_метки_для_Python');
+    if (!ws || !controlWs || !defectsWs) throw new Error('Масштабируемый Excel-шаблон повреждён.');
+
+    workbook.creator = 'Дистанционная Приёмка';
+    workbook.lastModifiedBy = 'Дистанционная Приёмка';
+    workbook.lastPrinted = undefined;
+    workbook.modified = new Date();
+    workbook.calcProperties.fullCalcOnLoad = true;
+    workbook.calcProperties.forceFullCalc = true;
+    workbook.calcProperties.calcMode = 'auto';
+
+    const shipment = exportState.shipment || {};
+    const skus = Array.isArray(exportState.skus) ? exportState.skus : [];
+    const dateValue = shipment.date ? excelSerialFromInput(`${shipment.date}T00:00`) : null;
+    const connectionTime = excelSerialFromInput(shipment.connectionTime);
+    const acceptanceStart = excelSerialFromInput(shipment.acceptanceStart);
+    const acceptanceEnd = excelSerialFromInput(shipment.acceptanceEnd);
+    const reportEnd = excelSerialFromInput(shipment.reportEnd);
+
+    const metadata = [
+      ['B3', shipment.id || ''], ['D3', shipment.rc || ''], ['F3', dateValue], ['H3', shipment.supplier || ''],
+      ['J3', shipment.format || ''], ['L3', shipment.mokk || ''], ['N3', shipment.dpId || ''],
+      ['P3', connectionTime], ['R3', acceptanceStart], ['B4', acceptanceEnd], ['D4', reportEnd],
+    ];
+    metadata.forEach(([address, value]) => { ws.getCell(address).value = value || null; });
+    if (dateValue) ws.getCell('F3').numFmt = 'dd.mm.yyyy';
+    ['P3','R3','B4','D4'].forEach(address => { if (ws.getCell(address).value !== null) ws.getCell(address).numFmt = 'hh:mm'; });
+
+    let summaryRow = 7;
+    skus.forEach((sku, index) => {
+      const row = ws.getRow(summaryRow);
+      row.values = [
+        index + 1,
+        shipment.id || '',
+        shipment.rc || '',
+        dateValue,
+        shipment.supplier || '',
+        sku.code || '',
+        sku.name || '',
+        shipment.format || '',
+        shipment.mokk || '',
+        shipment.dpId || '',
+        sku.vpt || '',
+        numberOrBlank(sku.sampleMass) === '' ? null : numberOrBlank(sku.sampleMass),
+        numberOrBlank(sku.defectMass) === '' ? null : numberOrBlank(sku.defectMass),
+        numberOrBlank(sku.nonstandardMass) === '' ? null : numberOrBlank(sku.nonstandardMass),
+        numberOrBlank(sku.debrisMass) === '' ? null : numberOrBlank(sku.debrisMass),
+        numberOrBlank(sku.caliberMass) === '' ? null : numberOrBlank(sku.caliberMass),
+        brixValuesForExport(sku) || '',
+        sku.apmError === 'yes' ? 'да' : 'нет',
+        sku.comment || '',
+      ];
+      if (dateValue) row.getCell(4).numFmt = 'dd.mm.yyyy';
+      [12,13,14,15,16].forEach(col => { row.getCell(col).numFmt = '0.000'; });
+      row.height = 30;
+      applyUnlimitedExcelRowStyle(row, 19, index % 2 === 1);
+      summaryRow += 1;
+    });
+    ws.autoFilter = { from: { row: 6, column: 1 }, to: { row: Math.max(6, summaryRow - 1), column: 19 } };
+    ws.views = [{ state: 'frozen', ySplit: 6 }];
+    ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
+
+    let controlRow = 4;
+    skus.forEach((sku, skuIndex) => {
+      QUESTIONS.forEach(question => {
+        const answer = sku?.checklist?.[question.code] || {};
+        const stage = STEP_GROUPS.find(item => item.id === question.step)?.title || `Этап ${Number(question.step) + 1}`;
+        const timeValue = isApplicable(sku, question) && answer.status !== 'na' && questionAllowsTimeValue(question, answer)
+          ? excelSerialFromInput(answer.time)
+          : null;
+        const row = controlWs.getRow(controlRow);
+        row.values = [
+          skuIndex + 1,
+          sku.code || '',
+          sku.name || '',
+          stage,
+          question.code,
+          question.text,
+          unlimitedQuestionResult(sku, question),
+          timeValue,
+          answer.comment || '',
+        ];
+        if (timeValue !== null) row.getCell(8).numFmt = 'hh:mm';
+        row.height = 28;
+        applyUnlimitedExcelRowStyle(row, 9, skuIndex % 2 === 1);
+        controlRow += 1;
+      });
+    });
+    controlWs.autoFilter = { from: { row: 3, column: 1 }, to: { row: Math.max(3, controlRow - 1), column: 9 } };
+    controlWs.views = [{ state: 'frozen', ySplit: 3 }];
+
+    let defectRow = 4;
+    skus.forEach((sku, skuIndex) => {
+      (Array.isArray(sku.defects) ? sku.defects : []).forEach(defect => {
+        if (!defect || (!String(defect.type || '').trim() && !String(defect.comment || '').trim() && numberOrBlank(defect.count) === '')) return;
+        const row = defectsWs.getRow(defectRow);
+        row.values = [
+          skuIndex + 1,
+          sku.code || '',
+          sku.name || '',
+          defectTypeForExport(defect) || '',
+          localizedVisual(defect.visual) || '',
+          numberOrBlank(defect.count) === '' ? null : numberOrBlank(defect.count),
+          defect.comment || '',
+          shipment.id || '',
+        ];
+        row.height = 28;
+        applyUnlimitedExcelRowStyle(row, 8, skuIndex % 2 === 1);
+        defectRow += 1;
+      });
+    });
+    defectsWs.autoFilter = { from: { row: 3, column: 1 }, to: { row: Math.max(3, defectRow - 1), column: 8 } };
+    defectsWs.views = [{ state: 'frozen', ySplit: 3 }];
+
+    if (metaWs) {
+      metaWs.getCell('A10').value = 'exported_at';
+      metaWs.getCell('B10').value = new Date().toISOString();
+      metaWs.getCell('A11').value = 'sku_count';
+      metaWs.getCell('B11').value = skus.length;
+      metaWs.getCell('A12').value = 'request_number';
+      metaWs.getCell('B12').value = shipment.id || '';
+      metaWs.getCell('A13').value = 'dp_id';
+      metaWs.getCell('B13').value = shipment.dpId || '';
+    }
+    return workbook;
+  }
+
   function fillExactTemplateWorkbook(workbook, exportState, exportType = 'new') {
     const ws = workbook.getWorksheet('Чек лист_ДП_Отчет') || workbook.worksheets[0];
     if (!ws) throw new Error('Не найден основной лист шаблона.');
@@ -4553,13 +5104,13 @@
 
     const summaryColumns = ['C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','X','AA','AB'];
     const allChecklistTimes = [];
-    const blocks = Array.from({ length: MAX_SKU }, (_, index) => skuExcelBlock(index));
+    const blocks = Array.from({ length: TEMPLATE_SKU_CAPACITY }, (_, index) => skuExcelBlock(index));
     blocks.forEach(block => {
       const helperCell = ws.getCell(`${block.helper}${layout.checklistMinRow}`);
       helperCell.value = { formula: layout.helperProcessRows.map(r => `${block.helper}${r}`).join('+'), result: 0 };
     });
 
-    for (let i = 0; i < MAX_SKU; i++) {
+    for (let i = 0; i < TEMPLATE_SKU_CAPACITY; i++) {
       const row = 5 + i; const sku = exportState.skus?.[i]; const block = blocks[i];
       const values = sku ? [s.id || '', s.rc || '', s.date ? new Date(`${s.date}T00:00:00`) : null, s.supplier || '', sku.code || '', sku.name || '', s.format || '', s.mokk || '', s.dpId || '', sku.vpt || '', numberOrBlank(sku.sampleMass), numberOrBlank(sku.defectMass), numberOrBlank(sku.nonstandardMass), numberOrBlank(sku.debrisMass), numberOrBlank(sku.caliberMass), brixValuesForExport(sku) || null, sku.apmError === 'yes' ? 'да' : 'нет', sku.comment || ''] : Array(summaryColumns.length).fill(null);
       summaryColumns.forEach((col, idx) => { const cell = ws.getCell(`${col}${row}`); const value = values[idx]; cell.value = value === '' ? null : value; if (col === 'E' && value) cell.numFmt = 'dd.mm.yyyy'; });
@@ -4650,7 +5201,7 @@
     ws.getCell(layout.totalDurationCell).value = { formula: `IF(OR(SUM(${statusSumExpr})=0,${layout.checkAndFillCell}="",${layout.overallDurationCell}=""),"",${layout.checkAndFillCell}+${layout.overallDurationCell})`, result: totalDuration };
     ws.getCell(layout.checkAndFillCell).numFmt = '[h]:mm'; ws.getCell(layout.totalDurationCell).numFmt = '[h]:mm';
     const reportDuration = acceptanceEnd !== null && reportEnd !== null ? reportEnd - acceptanceEnd : null;
-    for (let i = 0; i < MAX_SKU; i++) {
+    for (let i = 0; i < TEMPLATE_SKU_CAPACITY; i++) {
       const row = 5 + i; const block = blocks[i];
       ws.getCell(`AI${row}`).value = exportState.skus?.[i] && reportDuration !== null ? { formula: `IF(OR(G${row}="",${layout.reportEndCell}="",${layout.overallEndCell}=""),"",${layout.reportEndCell}-${layout.overallEndCell})`, result: reportDuration } : null;
     }
@@ -4677,16 +5228,24 @@
 
   async function exportExcelSafeBrowser(exportState, exportType = 'new') {
     if (!window.ExcelJS) throw new Error('Не загрузился модуль ExcelJS.');
-    const templateBase64 = exportType === 'old' ? globalThis.OLD_TEMPLATE_XLSX_BASE64 : globalThis.TEMPLATE_XLSX_BASE64;
-    if (!templateBase64) throw new Error('Не загрузился Excel-шаблон.');
     const workbook = new ExcelJS.Workbook();
-    setExportLoading(true, 'Открываем Excel-шаблон…', 30);
-    await promiseWithTimeout(workbook.xlsx.load(base64ToArrayBuffer(templateBase64)), 18000, 'Не удалось открыть Excel-шаблон.');
-    if (exportCancelled) return;
-    setExportLoading(true, 'Заполняем данные, чек-лист и дефекты…', 62);
-    fillExactTemplateWorkbook(workbook, exportState, exportType);
+    if (exportType === 'old') {
+      const templateBase64 = globalThis.OLD_TEMPLATE_XLSX_BASE64;
+      if (!templateBase64) throw new Error('Не загрузился старый Excel-шаблон.');
+      setExportLoading(true, 'Открываем старый Excel-шаблон…', 30);
+      await promiseWithTimeout(workbook.xlsx.load(base64ToArrayBuffer(templateBase64)), 18000, 'Не удалось открыть старый Excel-шаблон.');
+      if (exportCancelled) return;
+      setExportLoading(true, `Заполняем ${Math.min(exportState.skus?.length || 0, TEMPLATE_SKU_CAPACITY)} товарных позиций старой формы…`, 62);
+      fillExactTemplateWorkbook(workbook, exportState, 'old');
+    } else {
+      setExportLoading(true, 'Создаём масштабируемый Excel…', 30);
+      buildUnlimitedWorkbookLayout(workbook);
+      if (exportCancelled) return;
+      setExportLoading(true, `Заполняем ${exportState.skus?.length || 0} товарных позиций без ограничения…`, 62);
+      fillUnlimitedTemplateWorkbook(workbook, exportState);
+    }
     setExportLoading(true, 'Сохраняем таблицу…', 84);
-    const out = await promiseWithTimeout(workbook.xlsx.writeBuffer(), 25000, 'Превышено время сохранения Excel.');
+    const out = await promiseWithTimeout(workbook.xlsx.writeBuffer(), 45000, 'Превышено время сохранения Excel.');
     if (exportCancelled) return;
     setExportLoading(true, 'Удаляем сведения об авторе файла…', 92);
     const cleanedOut = await promiseWithTimeout(stripPersonalExcelMetadata(out), 15000, 'Не удалось очистить свойства Excel.');
