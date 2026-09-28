@@ -11,6 +11,7 @@
   const POLICY_VERSION = '2.0';
   const POLICY_ACCEPTANCE_KEY = 'magnit-dp-policy-consent-v1';
   const POLICY_SESSION_KEY = 'magnit-dp-policy-consent-session-v1';
+  const ALLOWED_DP_IDS = new Set(['45054','45309','45659','49031','45302','45965','44836','45312','45963','45761','19803','46342','46132','43542','45413','45381','45493','46322','45980','40039','44018','44295','45328','45124','45048','46184','46413','45397','44162','45666','46311','46571']);
 
   function readUserSession() {
     try {
@@ -24,7 +25,11 @@
   }
   function writeUserSession(user) { try { sessionStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(user)); } catch (_) {} }
   function clearUserSession() { try { sessionStorage.removeItem(AUTH_SESSION_KEY); } catch (_) {} }
+  function normalizeDpId(value) { return String(value || '').replace(/\D+/g, '').slice(0, 5); }
+  function isAllowedDpId(value) { return ALLOWED_DP_IDS.has(normalizeDpId(value)); }
   let currentUser = readUserSession();
+  if (currentUser && !isAllowedDpId(currentUser.dpId)) { clearUserSession(); currentUser = null; }
+  let shiftDashboardPeriod = 'days';
 
   const STEP_GROUPS = [
     { id: 0, title: 'Замер ВПТ', short: 'ВПТ', description: 'Фиксация фотографии и внутриплодной температуры.' },
@@ -566,10 +571,12 @@
     const idInput = document.getElementById('loginDpId');
     const dateInput = document.getElementById('loginWorkDate');
     const errorEl = document.getElementById('loginError');
-    const dpId = String(idInput?.value || '').trim();
+    const dpId = normalizeDpId(idInput?.value);
     const workDate = String(dateInput?.value || '').trim();
     const policyAlreadyAccepted = hasAcceptedPolicy();
+    if (idInput) idInput.value = dpId;
     if (!dpId) { if (errorEl) errorEl.textContent = 'Укажите ДП (ID).'; idInput?.focus(); return; }
+    if (!isAllowedDpId(dpId)) { if (errorEl) errorEl.textContent = 'Вход разрешён только по согласованным ДП ID. Проверьте номер.'; idInput?.focus(); return; }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(workDate)) { if (errorEl) errorEl.textContent = 'Укажите дату начала рабочего дня.'; dateInput?.focus(); return; }
     if (!policyAlreadyAccepted && !privacyConsent?.checked) { if (errorEl) errorEl.textContent = 'Для первого входа необходимо принять условия и политику конфиденциальности.'; privacyConsent?.focus(); return; }
     currentUser = { dpId, workDate, startedAt: new Date().toISOString() };
@@ -590,6 +597,12 @@
   }
   function initAuth() {
     document.getElementById('loginForm')?.addEventListener('submit', handleLoginSubmit);
+    document.getElementById('loginDpId')?.addEventListener('input', (event) => {
+      const next = normalizeDpId(event.target.value);
+      if (event.target.value !== next) event.target.value = next;
+      const errorEl = document.getElementById('loginError');
+      if (errorEl?.textContent && isAllowedDpId(next)) errorEl.textContent = '';
+    });
     privacyConsent?.addEventListener('change', () => {
       if (loginSubmit) loginSubmit.disabled = !privacyConsent.checked;
       const errorEl = document.getElementById('loginError'); if (privacyConsent.checked && errorEl?.textContent.includes('политик')) errorEl.textContent = '';
@@ -642,6 +655,31 @@
     if (!date || Number.isNaN(date.getTime())) return '—:—';
     return new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' }).format(date);
   }
+  function normalizeShiftMatchValue(value) { return String(value || '').trim().toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/\s+/g, ' '); }
+  function findShiftEntryIndex(shift, entry) {
+    const entries = Array.isArray(shift?.entries) ? shift.entries : [];
+    if (entry?.checklistId) {
+      const exact = entries.findIndex(item => item.checklistId === entry.checklistId);
+      if (exact >= 0) return exact;
+    }
+    const requestNumber = normalizeShiftMatchValue(entry?.requestNumber);
+    const rc = normalizeShiftMatchValue(entry?.rc);
+    if (!requestNumber) return -1;
+    return entries.findIndex(item => {
+      if (normalizeShiftMatchValue(item?.requestNumber) !== requestNumber) return false;
+      const itemRc = normalizeShiftMatchValue(item?.rc);
+      return !rc || !itemRc || itemRc === rc;
+    });
+  }
+  function upsertShiftEntry(shift, entry) {
+    const index = findShiftEntryIndex(shift, entry);
+    if (index >= 0) {
+      shift.entries[index] = { ...shift.entries[index], ...entry, checklistId: shift.entries[index].checklistId || entry.checklistId };
+      return 'updated';
+    }
+    shift.entries.push(entry);
+    return 'added';
+  }
   function recordChecklistInShift(exportType = 'new') {
     if (!currentUser?.dpId) return;
     const shift = ensureCurrentShift();
@@ -654,10 +692,9 @@
       productCount: state.skus?.length || 0,
       exportType: exportType === 'old' ? 'Старая форма' : 'Рабочая форма',
       exportedAt: new Date().toISOString(),
+      source: 'workspace',
     };
-    const index = shift.entries.findIndex(item => item.checklistId === entry.checklistId);
-    if (index >= 0) shift.entries[index] = { ...shift.entries[index], ...entry };
-    else shift.entries.push(entry);
+    upsertShiftEntry(shift, entry);
     saveShiftStore(); updateCurrentUserUI();
     if (state.ui.page === 'shift') render();
   }
@@ -798,6 +835,14 @@
     return String(value ?? '').replace(/[&<>'"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
   }
   const escapeAttr = escapeHtml;
+  function ruPlural(value, one, few, many) {
+    const n = Math.abs(Number(value) || 0);
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    if (mod10 === 1 && mod100 !== 11) return one;
+    if (mod10 >= 2 && mod10 <= 4 && !(mod100 >= 12 && mod100 <= 14)) return few;
+    return many;
+  }
   function numeric(value) {
     if (value === '' || value === null || value === undefined) return 0;
     const n = Number(String(value).replace(',', '.'));
@@ -2856,42 +2901,571 @@
       </div>`;
   }
 
+
+  function excelImportCellText(cell) {
+    const value = cell?.value;
+    if (value === null || value === undefined) return '';
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === 'object') {
+      if (value.result !== undefined && value.result !== null) return String(value.result).trim();
+      if (Array.isArray(value.richText)) return value.richText.map(part => part?.text || '').join('').trim();
+      if (value.text !== undefined) return String(value.text).trim();
+      if (value.hyperlink && value.text) return String(value.text).trim();
+    }
+    return String(value).trim();
+  }
+  function excelImportDateValue(cell) {
+    const value = cell?.value;
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, '0')}-${String(value.getDate()).padStart(2, '0')}`;
+    }
+    const raw = excelImportCellText(cell);
+    if (!raw) return '';
+    const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+    const ru = raw.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})$/);
+    if (ru) return `${String(ru[3]).length === 2 ? `20${ru[3]}` : ru[3]}-${String(ru[2]).padStart(2, '0')}-${String(ru[1]).padStart(2, '0')}`;
+    return '';
+  }
+  function parseChecklistNativeSheet(ws) {
+    if (!ws) return null;
+    const rows = [];
+    for (let row = 5; row <= 17; row += 1) {
+      const requestNumber = excelImportCellText(ws.getCell(`C${row}`));
+      const rc = excelImportCellText(ws.getCell(`D${row}`));
+      const supplier = excelImportCellText(ws.getCell(`F${row}`));
+      const productCode = excelImportCellText(ws.getCell(`G${row}`));
+      const productName = excelImportCellText(ws.getCell(`H${row}`));
+      const format = excelImportCellText(ws.getCell(`I${row}`));
+      const sourceDpId = normalizeDpId(excelImportCellText(ws.getCell(`K${row}`)));
+      const sourceDate = excelImportDateValue(ws.getCell(`E${row}`));
+      if (requestNumber || rc || supplier || productCode || productName) rows.push({ requestNumber, rc, supplier, productCode, productName, format, sourceDpId, sourceDate });
+    }
+    const productRows = rows.filter(row => row.productName || row.productCode);
+    const first = productRows[0] || rows[0];
+    if (!first?.requestNumber || !productRows.length) return null;
+    const sameRequestRows = productRows.filter(row => normalizeShiftMatchValue(row.requestNumber || first.requestNumber) === normalizeShiftMatchValue(first.requestNumber));
+    return {
+      requestNumber: first.requestNumber,
+      rc: first.rc,
+      supplier: first.supplier,
+      format: first.format || 'Excel',
+      sourceDpId: first.sourceDpId,
+      sourceDate: first.sourceDate,
+      productCount: sameRequestRows.length || productRows.length,
+      parser: 'native',
+      sheetName: ws.name || '',
+    };
+  }
+  function findGenericExcelHeader(ws) {
+    if (!ws) return null;
+    const maxRows = Math.min(Math.max(ws.rowCount || 0, 1), 50);
+    const maxCols = Math.min(Math.max(ws.columnCount || 0, 1), 60);
+    for (let rowNumber = 1; rowNumber <= maxRows; rowNumber += 1) {
+      const columns = {};
+      for (let col = 1; col <= maxCols; col += 1) {
+        const raw = excelImportCellText(ws.getCell(rowNumber, col));
+        if (!raw) continue;
+        const value = raw.toLocaleLowerCase('ru-RU').replace(/ё/g, 'е').replace(/\s+/g, ' ').trim();
+        if (!columns.request && (value.includes('номер заяв') || value === 'заявка' || value.includes('№ заявки'))) columns.request = col;
+        if (!columns.rc && (value === 'рц' || value.includes('распределительн') || value.includes('рц '))) columns.rc = col;
+        if (!columns.supplier && value.includes('поставщик')) columns.supplier = col;
+        if (!columns.product && (value.includes('наименование товар') || value === 'товар' || value.includes('товарная позиция'))) columns.product = col;
+        if (!columns.format && value.includes('формат')) columns.format = col;
+        if (!columns.dp && (value.includes('дп (id') || value.includes('дп id') || value === 'дп')) columns.dp = col;
+        if (!columns.date && (value.includes('дата прием') || value.includes('дата приём') || value === 'дата')) columns.date = col;
+      }
+      if (columns.request && columns.product) return { rowNumber, ...columns };
+    }
+    return null;
+  }
+  function parseChecklistGenericSheet(ws) {
+    const header = findGenericExcelHeader(ws);
+    if (!header) return null;
+    let requestNumber = '';
+    let rc = '';
+    let supplier = '';
+    let format = '';
+    let sourceDpId = '';
+    let sourceDate = '';
+    let productCount = 0;
+    const maxRows = Math.min(Math.max(ws.rowCount || 0, header.rowNumber + 1), header.rowNumber + 1000);
+    for (let row = header.rowNumber + 1; row <= maxRows; row += 1) {
+      const rowRequest = excelImportCellText(ws.getCell(row, header.request));
+      const product = excelImportCellText(ws.getCell(row, header.product));
+      if (!requestNumber && rowRequest) requestNumber = rowRequest;
+      if (requestNumber && rowRequest && normalizeShiftMatchValue(rowRequest) !== normalizeShiftMatchValue(requestNumber)) continue;
+      if (!requestNumber || (!rowRequest && !product)) continue;
+      if (product) productCount += 1;
+      if (!rc && header.rc) rc = excelImportCellText(ws.getCell(row, header.rc));
+      if (!supplier && header.supplier) supplier = excelImportCellText(ws.getCell(row, header.supplier));
+      if (!format && header.format) format = excelImportCellText(ws.getCell(row, header.format));
+      if (!sourceDpId && header.dp) sourceDpId = normalizeDpId(excelImportCellText(ws.getCell(row, header.dp)));
+      if (!sourceDate && header.date) sourceDate = excelImportDateValue(ws.getCell(row, header.date));
+    }
+    if (!requestNumber || !productCount) return null;
+    return { requestNumber, rc, supplier, format: format || 'Excel', sourceDpId, sourceDate, productCount, parser: 'generic', sheetName: ws.name || '' };
+  }
+  async function parseChecklistExcelFile(file) {
+    if (!window.ExcelJS) throw new Error('Не загрузился модуль ExcelJS.');
+    const name = String(file?.name || 'Excel');
+    if (!/\.xlsx$/i.test(name)) throw new Error('Поддерживаются файлы .xlsx.');
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(await file.arrayBuffer());
+    const preferred = workbook.getWorksheet('Чек лист_ДП_Отчет');
+    const worksheets = preferred ? [preferred, ...workbook.worksheets.filter(ws => ws !== preferred)] : workbook.worksheets;
+    for (const ws of worksheets) {
+      const parsed = parseChecklistNativeSheet(ws) || parseChecklistGenericSheet(ws);
+      if (parsed) return { ...parsed, fileName: name };
+    }
+    throw new Error('Не удалось найти номер заявки и товарные позиции в структуре файла.');
+  }
+  async function importExcelFilesToCurrentShift(files) {
+    const list = [...(files || [])].filter(file => file && /\.xlsx$/i.test(String(file.name || '')));
+    if (!list.length) { toast('Выберите один или несколько Excel-файлов .xlsx.', 'error', 5500); return; }
+    if (!currentUser?.dpId) { toast('Сначала войдите под ДП ID.', 'error'); return; }
+    const shift = ensureCurrentShift();
+    let added = 0;
+    let updated = 0;
+    let rejected = 0;
+    const failures = [];
+    const zone = document.querySelector('[data-shift-excel-drop]');
+    zone?.classList.add('is-importing');
+    toast(`Читаем ${list.length} ${ruPlural(list.length, 'Excel-файл', 'Excel-файла', 'Excel-файлов')}…`, '', 3000);
+    for (const file of list) {
+      try {
+        const parsed = await parseChecklistExcelFile(file);
+        if (parsed.sourceDpId && parsed.sourceDpId !== currentUser.dpId) {
+          rejected += 1;
+          failures.push(`${file.name}: ДП ID ${parsed.sourceDpId} не совпадает с текущим ${currentUser.dpId}`);
+          continue;
+        }
+        const entry = {
+          checklistId: `excel:${normalizeShiftMatchValue(parsed.requestNumber)}:${normalizeShiftMatchValue(parsed.rc)}`,
+          requestNumber: parsed.requestNumber,
+          rc: parsed.rc,
+          supplier: parsed.supplier,
+          format: parsed.format || 'Excel',
+          productCount: Number(parsed.productCount) || 0,
+          exportType: 'Импорт Excel',
+          exportedAt: new Date().toISOString(),
+          source: 'manual_excel',
+          sourceDpId: parsed.sourceDpId || currentUser.dpId,
+          sourceDate: parsed.sourceDate || '',
+          sourceFileName: file.name,
+          importedAt: new Date().toISOString(),
+        };
+        const result = upsertShiftEntry(shift, entry);
+        if (result === 'updated') updated += 1; else added += 1;
+      } catch (error) {
+        rejected += 1;
+        failures.push(`${file.name}: ${error?.message || error}`);
+      }
+    }
+    saveShiftStore(); updateCurrentUserUI();
+    zone?.classList.remove('is-importing', 'is-dragging');
+    render();
+    const successTotal = added + updated;
+    if (successTotal) toast(`Excel импортирован: ${added} новых, ${updated} обновлено${rejected ? `, ${rejected} пропущено` : ''}.`, 'success', 7000);
+    else toast(`Ни один файл не добавлен${failures.length ? `: ${failures[0]}` : '.'}`, 'error', 8500);
+    if (failures.length) console.warn('Ошибки ручного импорта Excel:', failures);
+  }
+
+  function getUserShiftHistory(dpId = currentUser?.dpId) {
+    return Object.values(shiftStore?.shifts || {})
+      .filter(shift => String(shift?.dpId || '') === String(dpId || ''))
+      .filter(shift => (Array.isArray(shift?.entries) && shift.entries.length > 0) || Boolean(shift?.ended))
+      .sort((a, b) => String(b?.workDate || '').localeCompare(String(a?.workDate || '')) || String(b?.startedAt || '').localeCompare(String(a?.startedAt || '')));
+  }
+  function getUserEntryHistory(dpId = currentUser?.dpId) {
+    return getUserShiftHistory(dpId).flatMap(shift => (Array.isArray(shift?.entries) ? shift.entries : []).map(entry => ({ ...entry, workDate: shift.workDate, ended: shift.ended, endedAt: shift.endedAt })));
+  }
+  function formatShiftDateCompact(value) {
+    if (!value) return '—';
+    const [year, month, day] = String(value).split('-').map(Number);
+    if (!year || !month || !day) return String(value);
+    return new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' }).format(new Date(year, month - 1, day));
+  }
+  function computeDateStreak(dates) {
+    const normalized = [...new Set((dates || []).filter(Boolean))].sort((a, b) => String(b).localeCompare(String(a)));
+    if (!normalized.length) return 0;
+    let streak = 1;
+    for (let i = 1; i < normalized.length; i += 1) {
+      const prev = new Date(`${normalized[i - 1]}T00:00:00`);
+      const current = new Date(`${normalized[i]}T00:00:00`);
+      const diffDays = Math.round((prev - current) / 86400000);
+      if (diffDays === 1) streak += 1;
+      else break;
+    }
+    return streak;
+  }
+  function topNamedMetric(values) {
+    const map = new Map();
+    (values || []).filter(Boolean).forEach(value => map.set(value, (map.get(value) || 0) + 1));
+    const best = [...map.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))[0];
+    return best ? { name: best[0], count: best[1] } : { name: '—', count: 0 };
+  }
+  function buildAchievementSet(profile) {
+    const total = profile.allTimeChecklists;
+    const maxPositionsSingle = profile.maxPositionsSingle;
+    const multiPositionCount = profile.multiPositionCount;
+    const shifts = profile.activeDates;
+    const createTier = (target) => ({
+      title: `${target} заяв${ruPlural(target, 'ка', 'ки', 'ок')}`,
+      icon: '◈',
+      unlocked: total >= target,
+      progress: Math.min(100, Math.round((total / target) * 100)),
+      caption: total >= target ? 'Достижение открыто' : `${Math.min(total, target)} из ${target}`,
+      description: `Выгрузить ${target} чек-лист${ruPlural(target, '', 'а', 'ов')} суммарно за всё время.`,
+    });
+    return [
+      createTier(50),
+      createTier(100),
+      createTier(150),
+      {
+        title: 'Многопозиционная заявка',
+        icon: '▣',
+        unlocked: maxPositionsSingle >= 15,
+        progress: Math.min(100, Math.round((maxPositionsSingle / 15) * 100)),
+        caption: maxPositionsSingle >= 15 ? `Максимум: ${maxPositionsSingle} позиций` : `${maxPositionsSingle} из 15 позиций`,
+        description: 'Открывается после выгрузки хотя бы одной заявки с 15+ товарными позициями.',
+      },
+      {
+        title: 'Поток многопозиционных',
+        icon: '⬢',
+        unlocked: multiPositionCount >= 10,
+        progress: Math.min(100, Math.round((multiPositionCount / 10) * 100)),
+        caption: multiPositionCount >= 10 ? `${multiPositionCount} заявок 15+` : `${multiPositionCount} из 10 заявок`,
+        description: 'Суммарно обработать 10 многопозиционных заявок.',
+      },
+      {
+        title: 'Стабильная активность',
+        icon: '✦',
+        unlocked: shifts >= 10,
+        progress: Math.min(100, Math.round((shifts / 10) * 100)),
+        caption: shifts >= 10 ? `${shifts} рабочих дат` : `${shifts} из 10 рабочих дат`,
+        description: 'Накопить историю минимум по 10 рабочим датам.',
+      },
+    ];
+  }
+  function buildUserProfile(dpId = currentUser?.dpId) {
+    const shifts = getUserShiftHistory(dpId);
+    const entries = getUserEntryHistory(dpId);
+    const allTimeChecklists = entries.length;
+    const allTimePositions = entries.reduce((sum, item) => sum + (Number(item.productCount) || 0), 0);
+    const activeDates = shifts.length;
+    const statsByDate = shifts.map(shift => ({ shift, stats: shiftStats(shift) }));
+    const bestDay = statsByDate
+      .map(item => ({
+        date: item.shift.workDate,
+        checklists: item.stats.checklists,
+        positions: item.stats.positions,
+      }))
+      .sort((a, b) => b.checklists - a.checklists || b.positions - a.positions || String(b.date || '').localeCompare(String(a.date || '')))[0] || { date: '', checklists: 0, positions: 0 };
+    const lastActive = shifts[0]?.workDate || '';
+    const averagePerDate = activeDates ? allTimeChecklists / activeDates : 0;
+    const averagePositionsPerDate = activeDates ? allTimePositions / activeDates : 0;
+    const topRc = topNamedMetric(entries.map(item => item.rc));
+    const topSupplier = topNamedMetric(entries.map(item => item.supplier));
+    const topFormat = topNamedMetric(entries.map(item => item.format));
+    const maxPositionsSingle = entries.reduce((max, item) => Math.max(max, Number(item.productCount) || 0), 0);
+    const multiPositionEntries = entries.filter(item => (Number(item.productCount) || 0) >= 15);
+    const streak = computeDateStreak(shifts.map(item => item.workDate));
+    const activity = statsByDate
+      .map(item => ({
+        date: item.shift.workDate,
+        checklists: item.stats.checklists,
+        positions: item.stats.positions,
+        ended: Boolean(item.shift.ended),
+        rcs: item.stats.rcs,
+      }))
+      .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')))
+      .slice(-10);
+    return {
+      shifts,
+      entries,
+      allTimeChecklists,
+      allTimePositions,
+      activeDates,
+      bestDay,
+      lastActive,
+      averagePerDate,
+      averagePositionsPerDate,
+      topRc,
+      topSupplier,
+      topFormat,
+      maxPositionsSingle,
+      multiPositionCount: multiPositionEntries.length,
+      multiPositionEntries,
+      streak,
+      activity,
+      achievements: buildAchievementSet({ allTimeChecklists, maxPositionsSingle, multiPositionCount: multiPositionEntries.length, activeDates }),
+    };
+  }
+  function shiftDateObject(value) {
+    const [year, month, day] = String(value || '').split('-').map(Number);
+    if (!year || !month || !day) return null;
+    const date = new Date(year, month - 1, day);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+  function dateToIsoLocal(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+  function startOfIsoWeek(date) {
+    const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const day = copy.getDay() || 7;
+    copy.setDate(copy.getDate() - day + 1);
+    return copy;
+  }
+  function shiftPeriodSeries(profile, period = shiftDashboardPeriod) {
+    const valid = ['days', 'weeks', 'months'].includes(period) ? period : 'days';
+    const historyDates = profile.shifts.map(item => shiftDateObject(item.workDate)).filter(Boolean);
+    const sessionDate = shiftDateObject(currentUser?.workDate);
+    const now = new Date();
+    const latest = [sessionDate, ...historyDates, now].filter(Boolean).sort((a, b) => b - a)[0] || now;
+    const buckets = [];
+    const map = new Map();
+    if (valid === 'days') {
+      const end = new Date(latest.getFullYear(), latest.getMonth(), latest.getDate());
+      for (let i = 13; i >= 0; i -= 1) {
+        const d = new Date(end); d.setDate(end.getDate() - i);
+        const key = dateToIsoLocal(d);
+        const item = { key, label: new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit' }).format(d), checklists: 0, positions: 0 };
+        buckets.push(item); map.set(key, item);
+      }
+      profile.shifts.forEach(shift => {
+        const item = map.get(shift.workDate); if (!item) return;
+        const stats = shiftStats(shift); item.checklists += stats.checklists; item.positions += stats.positions;
+      });
+      return { period: valid, label: '14 дней', buckets };
+    }
+    if (valid === 'weeks') {
+      const endWeek = startOfIsoWeek(latest);
+      for (let i = 11; i >= 0; i -= 1) {
+        const d = new Date(endWeek); d.setDate(endWeek.getDate() - i * 7);
+        const key = dateToIsoLocal(d);
+        const item = { key, label: new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit' }).format(d), checklists: 0, positions: 0 };
+        buckets.push(item); map.set(key, item);
+      }
+      profile.shifts.forEach(shift => {
+        const d = shiftDateObject(shift.workDate); if (!d) return;
+        const key = dateToIsoLocal(startOfIsoWeek(d)); const item = map.get(key); if (!item) return;
+        const stats = shiftStats(shift); item.checklists += stats.checklists; item.positions += stats.positions;
+      });
+      return { period: valid, label: '12 недель', buckets };
+    }
+    const endMonth = new Date(latest.getFullYear(), latest.getMonth(), 1);
+    for (let i = 11; i >= 0; i -= 1) {
+      const d = new Date(endMonth.getFullYear(), endMonth.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const item = { key, label: new Intl.DateTimeFormat('ru-RU', { month: 'short', year: '2-digit' }).format(d).replace('.', ''), checklists: 0, positions: 0 };
+      buckets.push(item); map.set(key, item);
+    }
+    profile.shifts.forEach(shift => {
+      const key = String(shift.workDate || '').slice(0, 7); const item = map.get(key); if (!item) return;
+      const stats = shiftStats(shift); item.checklists += stats.checklists; item.positions += stats.positions;
+    });
+    return { period: valid, label: '12 месяцев', buckets };
+  }
+  function chartNiceMax(values) {
+    const max = Math.max(0, ...(values || []).map(Number).filter(Number.isFinite));
+    if (max <= 0) return 4;
+    const rough = max / 4;
+    const power = 10 ** Math.floor(Math.log10(Math.max(rough, 1)));
+    const normalized = rough / power;
+    const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+    return Math.ceil(max / (step * power)) * step * power;
+  }
+  function renderShiftLineChart(buckets, key, ariaLabel) {
+    const width = 760, height = 250, left = 44, right = 16, top = 18, bottom = 43;
+    const plotW = width - left - right, plotH = height - top - bottom;
+    const max = chartNiceMax(buckets.map(item => Number(item[key]) || 0));
+    const pointX = index => left + (buckets.length <= 1 ? plotW / 2 : (plotW * index / (buckets.length - 1)));
+    const pointY = value => top + plotH - (Math.max(0, Number(value) || 0) / max) * plotH;
+    const path = buckets.map((item, index) => `${index ? 'L' : 'M'} ${pointX(index).toFixed(2)} ${pointY(item[key]).toFixed(2)}`).join(' ');
+    const grid = [0,1,2,3,4].map(i => {
+      const y = top + plotH * i / 4; const value = Math.round(max * (1 - i / 4));
+      return `<line x1="${left}" y1="${y}" x2="${width-right}" y2="${y}" class="pd-chart-guide"/><text x="${left-10}" y="${y+4}" text-anchor="end" class="pd-chart-axis">${value}</text>`;
+    }).join('');
+    const labelEvery = buckets.length > 12 ? 2 : 1;
+    const labels = buckets.map((item, index) => index % labelEvery === 0 || index === buckets.length - 1 ? `<text x="${pointX(index)}" y="${height-13}" text-anchor="middle" class="pd-chart-axis pd-chart-axis-x">${escapeHtml(item.label)}</text>` : '').join('');
+    const dots = buckets.map((item,index) => `<circle cx="${pointX(index)}" cy="${pointY(item[key])}" r="4" class="pd-chart-dot"><title>${escapeHtml(item.label)}: ${Number(item[key]) || 0}</title></circle>`).join('');
+    return `<svg class="pd-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeAttr(ariaLabel)}" preserveAspectRatio="xMidYMid meet">${grid}<path d="${path}" class="pd-chart-line"/>${dots}${labels}</svg>`;
+  }
+  function renderShiftBarChart(buckets, key, ariaLabel) {
+    const width = 560, height = 250, left = 42, right = 14, top = 18, bottom = 43;
+    const plotW = width-left-right, plotH=height-top-bottom;
+    const max = chartNiceMax(buckets.map(item => Number(item[key]) || 0));
+    const cell = plotW / Math.max(1,buckets.length); const barW = Math.max(5, Math.min(26, cell * .62));
+    const grid = [0,1,2,3,4].map(i => { const y=top+plotH*i/4; const value=Math.round(max*(1-i/4)); return `<line x1="${left}" y1="${y}" x2="${width-right}" y2="${y}" class="pd-chart-guide"/><text x="${left-9}" y="${y+4}" text-anchor="end" class="pd-chart-axis">${value}</text>`; }).join('');
+    const labelEvery = buckets.length > 12 ? 2 : 1;
+    const bars = buckets.map((item,index)=>{ const val=Number(item[key])||0; const h=val/max*plotH; const x=left+cell*index+(cell-barW)/2; const y=top+plotH-h; const label=(index%labelEvery===0||index===buckets.length-1)?`<text x="${x+barW/2}" y="${height-13}" text-anchor="middle" class="pd-chart-axis pd-chart-axis-x">${escapeHtml(item.label)}</text>`:''; return `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(val ? 3 : 0,h)}" rx="5" class="pd-chart-bar"><title>${escapeHtml(item.label)}: ${val}</title></rect>${label}`; }).join('');
+    return `<svg class="pd-chart-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeAttr(ariaLabel)}" preserveAspectRatio="xMidYMid meet">${grid}${bars}</svg>`;
+  }
+  function shiftEntryIdentifier(entry) {
+    return String(entry?.checklistId || `request:${normalizeShiftMatchValue(entry?.requestNumber)}:${normalizeShiftMatchValue(entry?.rc)}`);
+  }
+  function deleteShiftEntryById(entryId) {
+    const shift = ensureCurrentShift();
+    const entries = Array.isArray(shift.entries) ? shift.entries : [];
+    const index = entries.findIndex(item => shiftEntryIdentifier(item) === String(entryId || ''));
+    if (index < 0) { toast('Запись уже отсутствует в журнале.', 'error'); return; }
+    const entry = entries[index];
+    const label = entry.requestNumber || entry.sourceFileName || 'эту запись';
+    if (!confirm(`Удалить «${label}» из журнала за ${formatShiftDate(currentUser?.workDate)}? Статистика и достижения будут пересчитаны.`)) return;
+    entries.splice(index, 1);
+    saveShiftStore(); updateCurrentUserUI(); render();
+    toast('Запись удалена. Статистика пересчитана.', 'success', 3500);
+  }
+  function clearCurrentShiftJournal() {
+    const shift = ensureCurrentShift();
+    const count = Array.isArray(shift.entries) ? shift.entries.length : 0;
+    if (!count) return;
+    if (!confirm(`Удалить все ${count} ${ruPlural(count, 'запись', 'записи', 'записей')} из журнала за ${formatShiftDate(currentUser?.workDate)}? Это действие изменит личную статистику.`)) return;
+    shift.entries = [];
+    saveShiftStore(); updateCurrentUserUI(); render();
+    toast('Журнал выбранной даты очищен.', 'success', 3500);
+  }
+  function deleteShiftDate(workDate) {
+    const date = String(workDate || '');
+    const key = currentUser?.dpId && date ? `${currentUser.dpId}::${date}` : '';
+    const shift = key ? shiftStore.shifts[key] : null;
+    if (!shift) { toast('Данные этой даты уже отсутствуют.', 'error'); return; }
+    const stats = shiftStats(shift);
+    if (!confirm(`Удалить всю историю за ${formatShiftDate(date)} — ${stats.checklists} ${ruPlural(stats.checklists, 'чек-лист', 'чек-листа', 'чек-листов')}? Статистика и достижения будут пересчитаны.`)) return;
+    delete shiftStore.shifts[key];
+    saveShiftStore();
+    if (date === currentUser?.workDate) ensureCurrentShift();
+    updateCurrentUserUI(); render();
+    toast('Дата удалена из личной базы.', 'success', 3500);
+  }
+
   function renderShift() {
     const shift = ensureCurrentShift();
     const stats = shiftStats(shift);
+    const profile = buildUserProfile();
+    const series = shiftPeriodSeries(profile, shiftDashboardPeriod);
+    const periodChecklists = series.buckets.reduce((sum, item) => sum + item.checklists, 0);
+    const periodPositions = series.buckets.reduce((sum, item) => sum + item.positions, 0);
+    const periodPeak = [...series.buckets].sort((a,b) => b.checklists - a.checklists || b.positions - a.positions)[0] || { label:'—', checklists:0, positions:0 };
     const entries = [...(shift.entries || [])].sort((a, b) => String(a.exportedAt || '').localeCompare(String(b.exportedAt || '')));
     const rows = entries.map((item, index) => `<tr>
       <td><span class="shift-row-index">${String(index + 1).padStart(2, '0')}</span></td>
       <td><strong>${escapeHtml(item.requestNumber || 'Без номера')}</strong><small>${escapeHtml(item.supplier || 'Поставщик не указан')}</small></td>
       <td><strong>${escapeHtml(item.rc || 'РЦ не указан')}</strong><small>${escapeHtml(item.format || '—')}</small></td>
       <td><strong>${Number(item.productCount) || 0}</strong><small>товарных позиций</small></td>
-      <td><strong>${escapeHtml(formatShiftTime(item.exportedAt))}</strong><small>${escapeHtml(item.exportType || 'Excel')}</small></td>
+      <td><strong>${escapeHtml(formatShiftTime(item.exportedAt))}</strong><small>${escapeHtml(item.source === 'manual_excel' ? 'Импорт Excel' : (item.exportType || 'Excel'))}</small></td>
+      <td class="shift-row-actions"><button type="button" class="shift-delete-button" data-action="delete-shift-entry" data-entry-id="${escapeAttr(shiftEntryIdentifier(item))}" aria-label="Удалить заявку ${escapeAttr(item.requestNumber || '')}" title="Удалить из журнала"><span aria-hidden="true">×</span><b>Удалить</b></button></td>
     </tr>`).join('');
+    const historyRows = profile.shifts.map((item, index) => {
+      const itemStats = shiftStats(item);
+      const isCurrent = item.workDate === currentUser?.workDate;
+      return `<tr>
+        <td><strong>${String(index + 1).padStart(2, '0')}</strong></td>
+        <td><strong>${escapeHtml(formatShiftDateCompact(item.workDate))}</strong><small>${escapeHtml(item.ended ? 'Смена закрыта' : 'Смена в работе')}${isCurrent ? ' · текущая' : ''}</small></td>
+        <td><strong>${itemStats.checklists}</strong><small>чек-лист${ruPlural(itemStats.checklists, '', 'а', 'ов')}</small></td>
+        <td><strong>${itemStats.positions}</strong><small>товарных позиций</small></td>
+        <td><strong>${itemStats.rcs}</strong><small>уникальных РЦ</small></td>
+        <td class="shift-row-actions"><button type="button" class="shift-delete-button subtle" data-action="delete-shift-date" data-work-date="${escapeAttr(item.workDate)}" aria-label="Удалить историю за ${escapeAttr(formatShiftDate(item.workDate))}" title="Удалить дату"><span aria-hidden="true">×</span><b>Удалить дату</b></button></td>
+      </tr>`;
+    }).join('');
+    const achievements = profile.achievements.map(item => `<article class="achievement-card ${item.unlocked ? 'is-earned' : 'is-locked'}"><div class="achievement-icon">${escapeHtml(item.icon)}</div><div class="achievement-copy"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.description)}</small></div><div class="achievement-progress"><div class="achievement-progress-track"><i style="width:${item.progress}%"></i></div><span>${escapeHtml(item.caption)}</span></div></article>`).join('');
     const endedLabel = shift.ended && shift.endedAt ? `Завершена в ${formatShiftTime(shift.endedAt)}` : 'Смена в работе';
-    return `${pageHeading('Моя смена', 'Персональная статистика ДП за выбранный рабочий день.', `<button class="button button-primary" data-action="export-shift-report">Выгрузить итог дня</button>`)}
-      <div class="content-stack shift-workspace">
-        <section class="shift-hero card">
-          <div class="shift-hero-main">
-            <div class="shift-user-mark"><span>ДП</span></div>
-            <div><span class="eyebrow">ПЕРСОНАЛЬНАЯ СЕССИЯ</span><h3>${escapeHtml(currentUser?.dpId || '—')}</h3><p>${escapeHtml(formatShiftDate(currentUser?.workDate))} · ${escapeHtml(endedLabel)}</p></div>
+    const periodButtons = [
+      ['days','Дни'],['weeks','Недели'],['months','Месяцы']
+    ].map(([key,label]) => `<button type="button" class="pd-period-button ${shiftDashboardPeriod === key ? 'active' : ''}" data-action="set-shift-period" data-period="${key}" aria-pressed="${shiftDashboardPeriod === key}">${label}</button>`).join('');
+    return `${pageHeading('Моя смена', 'Личный рабочий профиль, база чек-листов, аналитика и достижения ДП.', `<button class="button button-primary" data-action="export-shift-report">Выгрузить итог дня</button>`)}
+      <div class="content-stack shift-workspace premium-shift-dashboard">
+        <section class="pd-hero">
+          <div class="pd-hero-copy">
+            <div class="pd-profile-mark">ДП</div>
+            <div><span class="eyebrow">ПЕРСОНАЛЬНЫЙ ПРОФИЛЬ</span><h2>${escapeHtml(currentUser?.dpId || '—')}</h2><p>${escapeHtml(formatShiftDate(currentUser?.workDate))} · ${escapeHtml(endedLabel)}</p></div>
           </div>
-          <div class="shift-controls">
-            <label class="shift-date-control"><span>Дата работы</span><input class="input" type="date" data-shift-date value="${escapeAttr(currentUser?.workDate || todayInput())}"></label>
-            <label class="shift-end-control"><input type="checkbox" data-shift-end ${shift.ended ? 'checked' : ''}><span><strong>Рабочий день закончен</strong><small>Необязательно. Отметка только фиксирует завершение смены.</small></span></label>
+          <div class="pd-hero-stats">
+            <article><span>За всё время</span><strong>${profile.allTimeChecklists}</strong><small>чек-лист${ruPlural(profile.allTimeChecklists, '', 'а', 'ов')}</small></article>
+            <article><span>Товарных позиций</span><strong>${profile.allTimePositions}</strong><small>накоплено в базе</small></article>
+            <article><span>Рабочих дат</span><strong>${profile.activeDates}</strong><small>история активности</small></article>
           </div>
         </section>
-        <div class="shift-kpi-grid">
-          <article class="shift-kpi accent"><span>Чек-листов за день</span><strong>${stats.checklists}</strong><small>успешно выгружено в Excel</small></article>
-          <article class="shift-kpi"><span>Товарных позиций</span><strong>${stats.positions}</strong><small>суммарно по журналу</small></article>
-          <article class="shift-kpi"><span>РЦ в работе</span><strong>${stats.rcs}</strong><small>уникальных распределительных центров</small></article>
-          <article class="shift-kpi"><span>Поставщиков</span><strong>${stats.suppliers}</strong><small>уникальных за рабочий день</small></article>
+
+        <section class="pd-control-row">
+          <label class="pd-control-card">
+            <span class="pd-control-icon">01</span>
+            <span class="pd-control-copy"><strong>Дата работы</strong><small>Определяет активный журнал и итоговый Excel.</small></span>
+            <input class="input" type="date" data-shift-date value="${escapeAttr(currentUser?.workDate || todayInput())}">
+          </label>
+          <label class="pd-control-card pd-end-card ${shift.ended ? 'is-ended' : ''}">
+            <span class="pd-control-icon">02</span>
+            <span class="pd-control-copy"><strong>Рабочий день закончен</strong><small>Необязательно. Фиксирует окончание смены в истории.</small></span>
+            <span class="pd-switch"><input type="checkbox" data-shift-end ${shift.ended ? 'checked' : ''}><i></i></span>
+          </label>
+        </section>
+
+        <section class="pd-kpi-strip">
+          <article class="pd-kpi primary"><span>Сегодня</span><strong>${stats.checklists}</strong><small>чек-лист${ruPlural(stats.checklists, '', 'а', 'ов')}</small></article>
+          <article class="pd-kpi"><span>ТП сегодня</span><strong>${stats.positions}</strong><small>товарных позиций</small></article>
+          <article class="pd-kpi"><span>Лучший день</span><strong>${profile.bestDay.checklists}</strong><small>${escapeHtml(profile.bestDay.date ? formatShiftDateCompact(profile.bestDay.date) : 'пока нет данных')}</small></article>
+          <article class="pd-kpi"><span>Серия</span><strong>${profile.streak}</strong><small>${ruPlural(profile.streak, 'день подряд', 'дня подряд', 'дней подряд')}</small></article>
+          <article class="pd-kpi"><span>15+ ТП</span><strong>${profile.multiPositionCount}</strong><small>многопозиционных</small></article>
+          <article class="pd-kpi"><span>Максимум ТП</span><strong>${profile.maxPositionsSingle}</strong><small>в одной заявке</small></article>
+        </section>
+
+        <section class="card card-pad pd-analytics-card">
+          <div class="pd-analytics-head">
+            <div><span class="eyebrow">АНАЛИТИКА АКТИВНОСТИ</span><h3>Динамика работы</h3><p>Переключайте масштаб: день, неделя или месяц. Данные строятся из личной базы ДП.</p></div>
+            <div class="pd-period-toggle" role="group" aria-label="Период графика">${periodButtons}</div>
+          </div>
+          <div class="pd-period-summary"><span><b>${periodChecklists}</b> чек-лист${ruPlural(periodChecklists, '', 'а', 'ов')} за ${series.label}</span><span><b>${periodPositions}</b> товарных позиций</span><span>Пик: <b>${periodPeak.checklists}</b> · ${escapeHtml(periodPeak.label)}</span></div>
+          <div class="pd-chart-guide">
+            <article class="pd-chart-card pd-chart-card-main"><header><div><span>Чек-листы</span><strong>Количество обработанных заявок</strong></div><b>${periodChecklists}</b></header>${renderShiftLineChart(series.buckets, 'checklists', `Чек-листы по периоду: ${series.label}`)}</article>
+            <article class="pd-chart-card"><header><div><span>Товарные позиции</span><strong>Нагрузка по ТП</strong></div><b>${periodPositions}</b></header>${renderShiftBarChart(series.buckets, 'positions', `Товарные позиции по периоду: ${series.label}`)}</article>
+          </div>
+        </section>
+
+        <div class="shift-insight-grid pd-insight-grid">
+          <section class="card card-pad shift-priority-panel">
+            <div class="section-head"><div><h3 class="card-title">Рабочий профиль</h3><p class="card-subtitle">Автоматически рассчитывается по всей накопленной истории.</p></div></div>
+            <div class="shift-priority-list">
+              <article><span>Приоритетный РЦ</span><strong>${escapeHtml(profile.topRc.name)}</strong><small>${profile.topRc.count ? `${profile.topRc.count} ${ruPlural(profile.topRc.count, 'чек-лист', 'чек-листа', 'чек-листов')}` : 'ещё не определён'}</small></article>
+              <article><span>Частый поставщик</span><strong>${escapeHtml(profile.topSupplier.name)}</strong><small>${profile.topSupplier.count ? `${profile.topSupplier.count} ${ruPlural(profile.topSupplier.count, 'раз', 'раза', 'раз')}` : 'ещё не определён'}</small></article>
+              <article><span>Средняя нагрузка</span><strong>${profile.averagePerDate ? profile.averagePerDate.toFixed(1).replace('.', ',') : '0'}</strong><small>чек-листа за рабочую дату</small></article>
+              <article><span>Средние позиции</span><strong>${profile.averagePositionsPerDate ? profile.averagePositionsPerDate.toFixed(1).replace('.', ',') : '0'}</strong><small>ТП за рабочую дату</small></article>
+              <article><span>Многопозиционные</span><strong>${profile.multiPositionCount}</strong><small>заявок с 15+ позициями</small></article>
+              <article><span>Последняя активность</span><strong>${escapeHtml(profile.lastActive ? formatShiftDateCompact(profile.lastActive) : '—')}</strong><small>${escapeHtml(profile.topFormat.name !== '—' ? `Частый формат: ${profile.topFormat.name}` : 'Формат ещё не определён')}</small></article>
+            </div>
+          </section>
+          <section class="card card-pad pd-achievement-summary">
+            <div class="section-head"><div><h3 class="card-title">Прогресс достижений</h3><p class="card-subtitle">Личный уровень растёт вместе с количеством заявок и сложностью работы.</p></div><span class="shift-count-badge">${profile.achievements.filter(item => item.unlocked).length} / ${profile.achievements.length}</span></div>
+            <div class="pd-achievement-ring" style="--earned:${profile.achievements.length ? Math.round(profile.achievements.filter(item => item.unlocked).length / profile.achievements.length * 100) : 0}"><div><strong>${profile.achievements.filter(item => item.unlocked).length}</strong><small>открыто</small></div></div>
+            <div class="pd-next-achievement">${(() => { const next = profile.achievements.find(item => !item.unlocked); return next ? `<span>Следующая цель</span><strong>${escapeHtml(next.title)}</strong><small>${escapeHtml(next.caption)}</small>` : '<span>Статус</span><strong>Все достижения открыты</strong><small>Продолжайте накапливать статистику.</small>'; })()}</div>
+          </section>
         </div>
-        <section class="card card-pad shift-journal-card">
-          <div class="section-head"><div><h3 class="card-title">Журнал чек-листов</h3><p class="card-subtitle">Запись создаётся после успешной выгрузки Excel. Повторная выгрузка того же рабочего пространства обновляет запись, а не дублирует её.</p></div><span class="shift-count-badge">${stats.checklists} шт.</span></div>
-          ${rows ? `<div class="shift-table-wrap"><table class="data-table shift-table"><thead><tr><th>#</th><th>Заявка</th><th>РЦ</th><th>ТП</th><th>Выгрузка</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="shift-empty"><span>0</span><strong>Пока нет выгруженных чек-листов</strong><p>Закончите приёмку и выгрузите Excel — заявка автоматически появится здесь.</p><button class="button button-secondary" data-page="shipment">Перейти к приёмке</button></div>`}
+
+        <section class="card card-pad shift-achievements-card">
+          <div class="section-head"><div><h3 class="card-title">Достижения</h3><p class="card-subtitle">Значки открываются автоматически и пересчитываются при добавлении или удалении записей.</p></div><span class="shift-count-badge">${profile.achievements.filter(item => item.unlocked).length} / ${profile.achievements.length}</span></div>
+          <div class="achievement-grid">${achievements}</div>
         </section>
+
+        <section class="card card-pad shift-history-card">
+          <div class="section-head"><div><h3 class="card-title">База по датам</h3><p class="card-subtitle">Архив активности по этому ДП ID. Лишнюю дату можно удалить целиком.</p></div><span class="shift-count-badge">${profile.activeDates} дат</span></div>
+          ${historyRows ? `<div class="shift-table-wrap"><table class="data-table shift-table"><thead><tr><th>#</th><th>Дата</th><th>Чек-листы</th><th>Позиции</th><th>РЦ</th><th>Действия</th></tr></thead><tbody>${historyRows}</tbody></table></div>` : `<div class="shift-empty"><span>0</span><strong>Пока нет базы по датам</strong><p>История появится автоматически после первой выгрузки Excel.</p></div>`}
+        </section>
+
+        <section class="card card-pad shift-journal-card">
+          <div class="section-head pd-journal-head"><div><h3 class="card-title">Журнал чек-листов за текущую дату</h3><p class="card-subtitle">Выгрузки сайта и ручной импорт Excel. Каждую лишнюю запись можно удалить отдельно.</p></div><div class="pd-journal-actions"><span class="shift-count-badge">${stats.checklists} шт.</span><button type="button" class="button button-danger button-small" data-action="clear-current-shift-journal" ${stats.checklists ? '' : 'disabled'}>Очистить журнал</button></div></div>
+          <label class="shift-excel-drop" data-shift-excel-drop>
+            <input type="file" data-shift-excel-import accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple hidden>
+            <span class="shift-excel-drop-icon">XLSX</span>
+            <span class="shift-excel-drop-copy"><strong>Добавить готовые чек-листы из Excel</strong><small>Перетащите один или несколько .xlsx. Заявка, РЦ, поставщик и количество ТП подтянутся автоматически.</small></span>
+            <span class="button button-secondary shift-excel-drop-button">Выбрать Excel</span>
+          </label>
+          <div class="shift-excel-note"><span>Автообработка</span><p>Excel читается локально в браузере. Дубликаты обновляются, а файл с другим ДП ID не засчитывается текущему пользователю.</p></div>
+          ${rows ? `<div class="shift-table-wrap"><table class="data-table shift-table"><thead><tr><th>#</th><th>Заявка</th><th>РЦ</th><th>ТП</th><th>Выгрузка</th><th>Действия</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="shift-empty"><span>0</span><strong>Пока нет чек-листов за эту дату</strong><p>Выгрузите Excel из приёмки или перетащите сюда уже готовые чек-листы.</p><button class="button button-secondary" data-page="shipment">Перейти к приёмке</button></div>`}
+        </section>
+
         <section class="shift-report-panel card card-pad ${shift.ended ? 'is-ended' : ''}">
-          <div><span class="eyebrow">ИТОГ РАБОЧЕГО ДНЯ</span><h3>${stats.checklists} чек-лист${stats.checklists === 1 ? '' : stats.checklists < 5 ? 'а' : 'ов'} · ${stats.positions} товарных позиций</h3><p>В отчёт попадут ДП ID, дата, номера заявок, РЦ, поставщики, количество товарных позиций и время выгрузки.</p></div>
+          <div><span class="eyebrow">ИТОГ РАБОЧЕГО ДНЯ</span><h3>${stats.checklists} чек-лист${ruPlural(stats.checklists, '', 'а', 'ов')} · ${stats.positions} товарн${ruPlural(stats.positions, 'ая позиция', 'ые позиции', 'ых позиций')}</h3><p>В отчёт попадут ДП ID, дата, номера заявок, РЦ, поставщики, количество товарных позиций и время выгрузки.</p></div>
           <button class="button button-primary" data-action="export-shift-report" ${stats.checklists ? '' : 'disabled'}>Скачать Excel по смене</button>
         </section>
       </div>`;
@@ -3208,6 +3782,7 @@
       return;
     }
     if (el.dataset.uiField) { state.ui[el.dataset.uiField] = el.value; scheduleSave(); render(); return; }
+    if (el.dataset.shiftExcelImport !== undefined && el.files?.length) { const files = [...el.files]; el.value = ''; importExcelFilesToCurrentShift(files); return; }
     if (el.matches('input[data-action="import-backup"]') && el.files?.[0]) importBackup(el.files[0]);
   }
 
@@ -3443,6 +4018,10 @@
     if (!button) return;
     const action = button.dataset.action;
     if (action === 'export-shift-report') { exportShiftReport(); return; }
+    if (action === 'set-shift-period') { const period = button.dataset.period; if (['days','weeks','months'].includes(period)) { shiftDashboardPeriod = period; render(); } return; }
+    if (action === 'delete-shift-entry') { deleteShiftEntryById(button.dataset.entryId); return; }
+    if (action === 'clear-current-shift-journal') { clearCurrentShiftJournal(); return; }
+    if (action === 'delete-shift-date') { deleteShiftDate(button.dataset.workDate); return; }
     if (action === 'open-shift-page') { setPage('shift'); return; }
     if (action === 'open-arm-import') { openArmImportModal(); return; }
     if (action === 'open-archive-timing') { showArchiveProgressiveTimingModal(); return; }
@@ -4254,11 +4833,38 @@
     queueStickyLayoutUpdate(); scheduleAmbientBrandPosition();
   }
 
+  function handleShiftExcelDragOver(event) {
+    const zone = event.target?.closest?.('[data-shift-excel-drop]');
+    if (!zone) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    zone.classList.add('is-dragging');
+  }
+  function handleShiftExcelDragLeave(event) {
+    const zone = event.target?.closest?.('[data-shift-excel-drop]');
+    if (!zone) return;
+    const next = event.relatedTarget;
+    if (next && zone.contains(next)) return;
+    zone.classList.remove('is-dragging');
+  }
+  function handleShiftExcelDrop(event) {
+    const zone = event.target?.closest?.('[data-shift-excel-drop]');
+    if (!zone) return;
+    event.preventDefault();
+    event.stopPropagation();
+    zone.classList.remove('is-dragging');
+    const files = [...(event.dataTransfer?.files || [])];
+    if (files.length) importExcelFilesToCurrentShift(files);
+  }
+
   function bindStaticEvents() {
     document.addEventListener('click', handleClick);
     document.addEventListener('input', handleInput);
     document.addEventListener('change', handleChange);
     document.addEventListener('keydown', handleKeydown);
+    document.addEventListener('dragover', handleShiftExcelDragOver);
+    document.addEventListener('dragleave', handleShiftExcelDragLeave);
+    document.addEventListener('drop', handleShiftExcelDrop);
     ['openNotesTop'].forEach(id => document.getElementById(id)?.addEventListener('click', openNotes));
     document.getElementById('notesClose').addEventListener('click', () => { state.ui.notesOpen = false; scheduleSave(); updateNotesPanel(); });
     document.getElementById('notesMinimize').addEventListener('click', () => { state.ui.notesMinimized = !state.ui.notesMinimized; scheduleSave(); updateNotesPanel(); });

@@ -24,9 +24,9 @@
   <div class="auth-card auth-card-next">
    <div class="auth-card-top"><span class="auth-sign">ДП</span><div class="eyebrow">ПЕРСОНАЛЬНАЯ РАБОЧАЯ СЕССИЯ</div><h2>Вход без пароля.<br>Только ваш ДП ID.</h2><p>Укажите рабочий идентификатор один раз — он автоматически попадёт во все открытые и новые чек-листы этой сессии.</p></div>
    <form id="loginForm" class="auth-form">
-    <div class="field auth-field"><label for="loginDpId">ДП (ID) <span class="required">*</span></label><input class="input auth-id-input" id="loginDpId" name="dpId" type="text" autocomplete="username" placeholder="Например: Чепко А.Е. / ID" required maxlength="80"></div>
+    <div class="field auth-field"><label for="loginDpId">ДП (ID) <span class="required">*</span></label><input class="input auth-id-input" id="loginDpId" name="dpId" type="text" autocomplete="username" inputmode="numeric" placeholder="Например: 45054" required maxlength="5" pattern="[0-9]{5}"><small class="auth-field-hint">Вход разрешён только по согласованным 5-значным ДП ID.</small></div>
     <div class="field auth-field"><label for="loginWorkDate">Дата начала работы <span class="required">*</span></label><input class="input" id="loginWorkDate" name="workDate" type="date" required></div>
-    <div class="auth-session-preview"><span>Персональная сессия</span><strong>Ваш ID → все РЦ → все Excel</strong><small>Пароли и общий системный логин больше не используются.</small></div>
+    <div class="auth-session-preview"><span>Персональная сессия</span><strong>Ваш ID → все РЦ → все Excel</strong><small>Пароли и общий системный логин больше не используются. Для входа разрешены только согласованные ДП ID.</small></div>
     <section class="auth-consent" id="privacyConsentBlock" aria-labelledby="privacyConsentTitle">
      <details class="policy-details"><summary id="privacyConsentTitle">Политика конфиденциальности и условия <span>↗</span></summary><div class="auth-consent-copy">
               <p>Система предназначена для внутренней работы с дистанционной приёмкой и хранит рабочие данные локально в используемом браузере.</p>

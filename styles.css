@@ -6216,3 +6216,118 @@ body { font-size: clamp(13.3px, calc(14px * var(--font-scale)), 15.12px); }
 .smart-comment-other strong { font-size: 12px; }
 .smart-comment-other span { color: var(--muted); font-size: 11px; }
 .smart-comment-other:hover span { color: var(--ink); }
+
+
+/* v91 — мобильные карточки РЦ и стабильность текста */
+.workspace-tabs {
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+.workspace-tab-wrap {
+  scroll-snap-align: start;
+}
+.workspace-tab-copy {
+  gap: 2px;
+}
+.workspace-tab-copy strong,
+.workspace-tab-copy small,
+.workspace-tab-copy em {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.workspace-tab-copy em {
+  color: var(--muted);
+  font-size: 7px;
+  font-style: normal;
+}
+@media (max-width: 680px) {
+  .workspace-bar-multiple {
+    grid-template-areas:
+      "heading heading"
+      "tabs add";
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+  .workspace-overview-heading {
+    align-items: start;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .workspace-overview-heading strong {
+    white-space: normal;
+    line-height: 1.25;
+  }
+  .workspace-add {
+    min-width: 112px;
+    min-height: 56px;
+    padding-inline: 12px;
+  }
+}
+@media (max-width: 560px) {
+  .workspace-tabs {
+    gap: 10px;
+    padding-bottom: 4px;
+  }
+  .workspace-tab-wrap {
+    flex: 0 0 min(84vw, 272px);
+    min-width: min(84vw, 272px);
+    max-width: min(84vw, 272px);
+  }
+  .workspace-tab {
+    min-height: 96px;
+    padding: 11px 9px 14px 10px;
+    grid-template-columns: 24px minmax(0, 1fr) 38px;
+    align-items: start;
+  }
+  .workspace-tab-copy {
+    align-self: start;
+    gap: 3px;
+  }
+  .workspace-tab-copy strong,
+  .workspace-tab-copy small,
+  .workspace-tab-copy em {
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    line-height: 1.3;
+  }
+  .workspace-tab-copy strong {
+    font-size: 11px;
+  }
+  .workspace-tab-copy small {
+    font-size: 8px;
+  }
+  .workspace-tab-copy em {
+    font-size: 7px;
+  }
+  .workspace-close {
+    align-self: stretch;
+    display: grid;
+    place-items: start center;
+    padding-top: 11px;
+  }
+  .workspace-tab-ring,
+  .workspace-tab-percent,
+  .workspace-tab-progress-indicator {
+    align-self: start;
+  }
+  .workspace-tab-progress {
+    left: 10px;
+    right: 10px;
+    bottom: 7px;
+  }
+}
+@media (max-width: 420px) {
+  .workspace-switcher {
+    padding-inline: 8px;
+  }
+  .workspace-tab-wrap {
+    flex-basis: min(86vw, 260px);
+    min-width: min(86vw, 260px);
+    max-width: min(86vw, 260px);
+  }
+  .workspace-add {
+    min-width: 96px;
+    border-radius: 13px;
+  }
+}

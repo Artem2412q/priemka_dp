@@ -10,3 +10,5 @@
 @keyframes film-sheen{0%,72%,100%{transform:translateX(-110%)}85%{transform:translateX(110%)}}
 @media(max-width:600px){.film{padding:7px 14px 8px;border-radius:22px}.film:after{left:15px;top:14px;font-size:5px}.film-still-label{top:12px;right:14px;padding:6px 8px}.film-caption h2{font-size:14px}.film-route button>span{font-size:5.5px;white-space:normal}.film-caption button{width:32px;height:32px}.cinema{height:calc(100% - 86px)}}
 @media(prefers-reduced-motion:reduce){.film:before{display:none}.scene{filter:none}.film-route button>i:after{transition:none}}
+
+.warehouse-sign rect{stroke:#cfd3c4;stroke-width:1}.warehouse-sign text{dominant-baseline:middle;text-rendering:geometricPrecision}
