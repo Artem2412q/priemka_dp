@@ -29,7 +29,6 @@
   function isAllowedDpId(value) { return ALLOWED_DP_IDS.has(normalizeDpId(value)); }
   let currentUser = readUserSession();
   if (currentUser && !isAllowedDpId(currentUser.dpId)) { clearUserSession(); currentUser = null; }
-  let shiftDashboardPeriod = 'days';
 
   const STEP_GROUPS = [
     { id: 0, title: 'Замер ВПТ', short: 'ВПТ', description: 'Фиксация фотографии и внутриплодной температуры.' },
@@ -3345,10 +3344,6 @@
     const shift = ensureCurrentShift();
     const stats = shiftStats(shift);
     const profile = buildUserProfile();
-    const series = shiftPeriodSeries(profile, shiftDashboardPeriod);
-    const periodChecklists = series.buckets.reduce((sum, item) => sum + item.checklists, 0);
-    const periodPositions = series.buckets.reduce((sum, item) => sum + item.positions, 0);
-    const periodPeak = [...series.buckets].sort((a,b) => b.checklists - a.checklists || b.positions - a.positions)[0] || { label:'—', checklists:0, positions:0 };
     const entries = [...(shift.entries || [])].sort((a, b) => String(a.exportedAt || '').localeCompare(String(b.exportedAt || '')));
     const rows = entries.map((item, index) => `<tr>
       <td><span class="shift-row-index">${String(index + 1).padStart(2, '0')}</span></td>
@@ -3372,10 +3367,7 @@
     }).join('');
     const achievements = profile.achievements.map(item => `<article class="achievement-card ${item.unlocked ? 'is-earned' : 'is-locked'}"><div class="achievement-icon">${escapeHtml(item.icon)}</div><div class="achievement-copy"><strong>${escapeHtml(item.title)}</strong><small>${escapeHtml(item.description)}</small></div><div class="achievement-progress"><div class="achievement-progress-track"><i style="width:${item.progress}%"></i></div><span>${escapeHtml(item.caption)}</span></div></article>`).join('');
     const endedLabel = shift.ended && shift.endedAt ? `Завершена в ${formatShiftTime(shift.endedAt)}` : 'Смена в работе';
-    const periodButtons = [
-      ['days','Дни'],['weeks','Недели'],['months','Месяцы']
-    ].map(([key,label]) => `<button type="button" class="pd-period-button ${shiftDashboardPeriod === key ? 'active' : ''}" data-action="set-shift-period" data-period="${key}" aria-pressed="${shiftDashboardPeriod === key}">${label}</button>`).join('');
-    return `${pageHeading('Моя смена', 'Личный рабочий профиль, база чек-листов, аналитика и достижения ДП.', `<button class="button button-primary" data-action="export-shift-report">Выгрузить итог дня</button>`)}
+    return `${pageHeading('Моя смена', 'Личный рабочий профиль, база чек-листов и достижения ДП.', `<button class="button button-primary" data-action="export-shift-report">Выгрузить итог дня</button>`)}
       <div class="content-stack shift-workspace premium-shift-dashboard">
         <section class="pd-hero">
           <div class="pd-hero-copy">
@@ -3409,18 +3401,6 @@
           <article class="pd-kpi"><span>Серия</span><strong>${profile.streak}</strong><small>${ruPlural(profile.streak, 'день подряд', 'дня подряд', 'дней подряд')}</small></article>
           <article class="pd-kpi"><span>15+ ТП</span><strong>${profile.multiPositionCount}</strong><small>многопозиционных</small></article>
           <article class="pd-kpi"><span>Максимум ТП</span><strong>${profile.maxPositionsSingle}</strong><small>в одной заявке</small></article>
-        </section>
-
-        <section class="card card-pad pd-analytics-card">
-          <div class="pd-analytics-head">
-            <div><span class="eyebrow">АНАЛИТИКА АКТИВНОСТИ</span><h3>Динамика работы</h3><p>Переключайте масштаб: день, неделя или месяц. Данные строятся из личной базы ДП.</p></div>
-            <div class="pd-period-toggle" role="group" aria-label="Период графика">${periodButtons}</div>
-          </div>
-          <div class="pd-period-summary"><span><b>${periodChecklists}</b> чек-лист${ruPlural(periodChecklists, '', 'а', 'ов')} за ${series.label}</span><span><b>${periodPositions}</b> товарных позиций</span><span>Пик: <b>${periodPeak.checklists}</b> · ${escapeHtml(periodPeak.label)}</span></div>
-          <div class="pd-chart-guide">
-            <article class="pd-chart-card pd-chart-card-main"><header><div><span>Чек-листы</span><strong>Количество обработанных заявок</strong></div><b>${periodChecklists}</b></header>${renderShiftLineChart(series.buckets, 'checklists', `Чек-листы по периоду: ${series.label}`)}</article>
-            <article class="pd-chart-card"><header><div><span>Товарные позиции</span><strong>Нагрузка по ТП</strong></div><b>${periodPositions}</b></header>${renderShiftBarChart(series.buckets, 'positions', `Товарные позиции по периоду: ${series.label}`)}</article>
-          </div>
         </section>
 
         <div class="shift-insight-grid pd-insight-grid">
@@ -4018,7 +3998,6 @@
     if (!button) return;
     const action = button.dataset.action;
     if (action === 'export-shift-report') { exportShiftReport(); return; }
-    if (action === 'set-shift-period') { const period = button.dataset.period; if (['days','weeks','months'].includes(period)) { shiftDashboardPeriod = period; render(); } return; }
     if (action === 'delete-shift-entry') { deleteShiftEntryById(button.dataset.entryId); return; }
     if (action === 'clear-current-shift-journal') { clearCurrentShiftJournal(); return; }
     if (action === 'delete-shift-date') { deleteShiftDate(button.dataset.workDate); return; }
