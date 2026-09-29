@@ -3,7 +3,7 @@
 
   const STORAGE_KEY = 'magnit-dp-workspace-v30';
   const LEGACY_KEYS = ['magnit-dp-workspace-v26', 'magnit-dp-manual-v21', 'magnit-dp-manual-v20', 'magnit-dp-manual-v19', 'magnit-dp-manual-v18', 'magnit-dp-manual-v17', 'magnit-dp-state-v14', 'magnit-dp-state-v13', 'magnit-dp-state-v12'];
-  const TEMPLATE_SKU_CAPACITY = 12; // только для старой Excel-формы; интерфейс без фиксированного лимита
+  const MAX_SKU = 12;
   const MAX_CHECKLISTS = 30;
   const MAX_DEFECTS = 6;
   const AUTH_SESSION_KEY = 'magnit-dp-user-session-v30';
@@ -955,9 +955,10 @@
     next.shipment.supplier = item.supplier || '';
     next.shipment.dpId = currentUser?.dpId || '';
     const products = Array.isArray(item.products) ? item.products.filter(product => product.code || product.name) : [];
-    if (products.length) next.skus = products.map(product => { const sku = defaultSku(); sku.code = product.code || ''; sku.name = product.name || ''; sku.importMeta = { source: 'day-plan', requestNumber: item.requestNumber, importedAt: new Date().toISOString() }; return sku; });
+    if (products.length) next.skus = products.slice(0, MAX_SKU).map(product => { const sku = defaultSku(); sku.code = product.code || ''; sku.name = product.name || ''; sku.importMeta = { source: 'day-plan', requestNumber: item.requestNumber, importedAt: new Date().toISOString() }; return sku; });
     if (!currentBlank) workspace.checklists.push(next); state = next; workspace.activeChecklistId = next.id; persistWorkspace(); render();
-    toast(`Заявка ${item.requestNumber} открыта для приёмки.`, 'success');
+    if (products.length > MAX_SKU) toast(`В плане ${products.length} ТП. В текущую форму перенесены первые ${MAX_SKU}; остальные нужно обработать отдельно.`, 'error', 7000);
+    else toast(`Заявка ${item.requestNumber} открыта для приёмки.`, 'success');
   }
 
   function normalizeRcSearch(value) {
@@ -1197,7 +1198,7 @@
       id: raw.id || base.id,
       version: 25,
       shipment: { ...base.shipment, ...(raw.shipment || {}), dpId: currentUser?.dpId || raw.shipment?.dpId || '', format: ['Онлайн', 'Архив'].includes(raw.shipment?.format) ? raw.shipment.format : 'Онлайн' },
-      skus: Array.isArray(raw.skus) && raw.skus.length ? raw.skus.map(migrateSku) : [defaultSku()],
+      skus: Array.isArray(raw.skus) && raw.skus.length ? raw.skus.slice(0, MAX_SKU).map(migrateSku) : [defaultSku()],
       groupChecklist: (() => {
         const saved = raw.groupChecklist && typeof raw.groupChecklist === 'object' ? raw.groupChecklist : {};
         return {
@@ -1842,7 +1843,7 @@
 
   function renderOperationalQueue() {
     const ready = state.skus.filter((sku, index) => ['ready', 'ready-warning'].includes(getSkuStatus(sku, index).key)).length;
-    return `<section class="operational-queue-shell"><div class="operational-queue-head"><div><span class="eyebrow">Очередь товаров</span><strong>${ready} из ${state.skus.length} готово</strong></div><button type="button" class="button button-primary button-small" data-action="add-sku">+ Товар</button></div><div class="operational-queue">${state.skus.map((sku, index) => {
+    return `<section class="operational-queue-shell"><div class="operational-queue-head"><div><span class="eyebrow">Очередь товаров</span><strong>${ready} из ${state.skus.length} готово</strong></div><button type="button" class="button button-primary button-small" data-action="add-sku" ${state.skus.length >= MAX_SKU ? 'disabled' : ''}>+ Товар</button></div><div class="operational-queue">${state.skus.map((sku, index) => {
       const status = getSkuStatus(sku, index);
       return `<button type="button" class="operational-queue-item ${index === state.ui.currentSku ? 'active' : ''}" data-action="select-sku" data-sku="${index}" data-status="${status.key}"><span class="operational-queue-index">${index + 1}</span><span class="operational-queue-copy"><strong>${escapeHtml(getSkuLabel(sku, index))}</strong><small>${escapeHtml(status.label)}</small></span><b data-operational-sku-status="${index}">${status.progress}%</b></button>`;
     }).join('')}</div></section>`;
@@ -2078,7 +2079,7 @@
       const productPreview = products.slice(0, 3).map(product => product.name || product.code).filter(Boolean);
       return `<article class="day-plan-request ${statusClass}">
         <div class="day-plan-request-status"><span class="plan-status-dot"></span><strong>${escapeHtml(statusLabel)}</strong><small>${item.source === 'manual' ? 'Вручную' : 'АРМ'}</small></div>
-        <div class="day-plan-request-main"><div class="day-plan-request-title"><strong>${escapeHtml(item.requestNumber || 'Без номера')}</strong><span>${Number(item.productCount) || 0} ТП</span></div><div class="day-plan-request-meta"><span>${escapeHtml(item.rc || 'РЦ не указан')}</span><i>•</i><span>${escapeHtml(item.supplier || 'Поставщик не указан')}</span></div>${productPreview.length ? `<div class="day-plan-products">${productPreview.map(name => `<span>${escapeHtml(name)}</span>`).join('')}${products.length > 3 ? `<em>+${products.length - 3}</em>` : ''}</div>` : '<div class="day-plan-products is-empty"><span>Состав товаров будет заполнен при приёмке</span></div>'}</div>
+        <div class="day-plan-request-main"><div class="day-plan-request-title"><strong>${escapeHtml(item.requestNumber || 'Без номера')}</strong><span>${Number(item.productCount) || 0} ТП</span></div><div class="day-plan-request-meta"><span>${escapeHtml(item.rc || 'РЦ не указан')}</span><i>•</i><span>${escapeHtml(item.supplier || 'Поставщик не указан')}</span></div>${productPreview.length ? `<div class="day-plan-products">${productPreview.map(name => `<span>${escapeHtml(name)}</span>`).join('')}${products.length > 3 ? `<em>+${products.length - 3}</em>` : ''}</div>` : '<div class="day-plan-products is-empty"><span>Состав товаров будет заполнен при приёмке</span></div>'}${(Number(item.productCount) || 0) > MAX_SKU ? `<div class="day-plan-warning">В заявке ${Number(item.productCount) || 0} ТП — форма приёмки сейчас поддерживает до ${MAX_SKU} позиций за один чек-лист.</div>` : ''}</div>
         <div class="day-plan-request-actions">${status === 'done' ? '<button class="button button-secondary button-small" data-page="shift">В журнал</button>' : `<button class="button button-primary button-small" data-action="start-day-plan-request" data-plan-id="${escapeAttr(item.id)}">${status === 'active' ? 'Продолжить' : 'Начать приёмку'}</button>`}<button class="icon-button plan-remove" data-action="remove-day-plan-request" data-plan-id="${escapeAttr(item.id)}" title="Убрать из плана" aria-label="Убрать заявку ${escapeAttr(item.requestNumber || '')} из плана">×</button></div>
       </article>`;
     }).join('');
@@ -2458,6 +2459,7 @@
       else rows = (await armWorkerRequest('search', { requestNumber })).rows || [];
       const warnings = [];
       if (!rows.length) warnings.push(`Заявка ${requestNumber} в загруженном файле не найдена.`);
+      if (rows.length > MAX_SKU) warnings.push(`В заявке ${rows.length} товарных позиций. Текущий Excel-чек-лист поддерживает максимум ${MAX_SKU}; импорт заблокирован, чтобы не потерять товары.`);
       if (armImportSession.mode === 'Архив') {
         warnings.push(...armArchiveMappingWarnings());
         warnings.push(...armArchiveMokkWarnings(rows));
@@ -2529,7 +2531,7 @@
     document.getElementById('modalTitle').textContent = 'Импорт заявки из АРМ';
     const rows = armImportSession.rows || [];
     const first = rows[0] || {};
-    const tooMany = false;
+    const tooMany = rows.length > MAX_SKU;
     const mode = armImportSession.mode;
     body.innerHTML = `<div class="arm-import-shell">
       <div class="arm-import-mode" role="radiogroup" aria-label="Формат приёмки">
@@ -2554,6 +2556,7 @@
     document.querySelectorAll('[data-arm-mode]').forEach(button => button.addEventListener('click', () => {
       armImportSession.mode = button.dataset.armMode === 'Архив' ? 'Архив' : 'Онлайн';
       const warnings = [];
+      if (armImportSession.rows.length > MAX_SKU) warnings.push(`В заявке ${armImportSession.rows.length} товарных позиций. Текущий Excel-чек-лист поддерживает максимум ${MAX_SKU}; импорт заблокирован, чтобы не потерять товары.`);
       if (armImportSession.rows.length && armImportSession.mode === 'Архив') {
         warnings.push(...armArchiveMappingWarnings());
         warnings.push(...armArchiveMokkWarnings(armImportSession.rows));
@@ -2575,6 +2578,7 @@
   function applyArmImport() {
     const rows = armImportSession.rows || [];
     if (!rows.length) { toast('Сначала найдите заявку.', 'error'); return; }
+    if (rows.length > MAX_SKU) { toast(`В заявке больше ${MAX_SKU} товаров. Импорт остановлен без потери данных.`, 'error', 6500); return; }
     const mode = armImportSession.mode === 'Архив' ? 'Архив' : 'Онлайн';
     const first = rows[0];
     const requestNumber = armImportSession.requestNumber;
@@ -2869,10 +2873,10 @@
   }
 
   function renderProducts() {
-    return `${pageHeading('Товары и основные параметры', 'Добавляйте столько товарных позиций, сколько есть в заявке. Фиксированного лимита больше нет.', `<button class="button button-primary" data-action="add-sku">+ Добавить товар</button>`)}
+    return `${pageHeading('Товары и основные параметры', 'Добавьте до 12 товарных позиций. Статус каждой позиции обновляется автоматически по мере прохождения всей приёмки.', `<button class="button button-primary" data-action="add-sku" ${state.skus.length >= MAX_SKU ? 'disabled' : ''}>+ Добавить товар</button>`)}
       <div class="content-stack">
         ${renderProductStatusBoard()}
-        <div class="product-toolbar"><div class="notice">Статус «Готова» появится после заполнения реквизитов, чек-листа, ВПТ и итоговых масс.</div><span class="field-hint">${state.skus.length} ${ruPlural(state.skus.length, 'товар', 'товара', 'товаров')} · без фиксированного лимита</span></div>
+        <div class="product-toolbar"><div class="notice">Статус «Готова» появится после заполнения реквизитов, чек-листа, ВПТ и итоговых масс.</div><span class="field-hint">${state.skus.length} из ${MAX_SKU} товаров</span></div>
         <div class="product-list">${state.skus.map(renderProductCard).join('')}</div>
         <div class="button-row"><button class="button button-ghost" data-page="shipment">← К приёмке</button><button class="button button-primary" data-page="checklist">К чек-листу →</button></div>
       </div>`;
@@ -3148,7 +3152,7 @@
         ${renderFinalMasses()}
         <div class="kpi-grid">
           ${kpi('Готовность', `${c.percent}%`, `${c.sectionsDone} из ${c.sectionTotal} разделов`, c.percent === 100 ? 'status-good' : 'status-warn')}
-          ${kpi('Товаров', String(state.skus.length), 'без фиксированного лимита')}
+          ${kpi('Товаров', String(state.skus.length), `максимум ${MAX_SKU}`)}
           ${kpi('Чек-лист', `${stats.done}/${stats.total}`, `${stats.percent}% заполнено`, stats.percent === 100 ? 'status-good' : 'status-warn')}
           ${kpi('Дефектных единиц', displayNumber(defectTotal, 0), `${state.skus.reduce((sum, sku) => sum + sku.defects.length, 0)} записей`)}
         </div>
@@ -3182,7 +3186,7 @@
           <section class="card card-pad export-panel">
             <div class="section-head"><div><h3 class="card-title">Выгрузить Excel</h3><p class="card-subtitle">Выгружается только открытая страница — данные других РЦ не смешиваются.</p></div></div>
             <div class="export-choice export-choice-single">
-              <button class="export-button" data-action="request-export" data-export-type="new"><span><strong>Выгрузить Excel</strong><span>Масштабируемый Excel — все товарные позиции без фиксированного лимита</span></span><b class="export-arrow">→</b></button>
+              <button class="export-button" data-action="request-export" data-export-type="new"><span><strong>Выгрузить Excel</strong><span>Проверенный рабочий шаблон для открытого РЦ</span></span><b class="export-arrow">→</b></button>
             </div>
             <div class="notice" style="margin-top:14px">Имя файла: <strong>${escapeHtml(buildChecklistFilename(s))}</strong></div>
           </section>
@@ -4448,7 +4452,7 @@
       runAdaptiveTransition(() => { state.ui.currentSku = nextSku; scheduleSave(); render(); }, { direction, mode: 'swap' });
       return;
     }
-    if (action === 'add-sku') { const nextSku = defaultSku(); state.skus.push(nextSku); if (state.ui.checklistMode !== 'individual' && state.groupChecklist?.selectionInitialized) state.groupChecklist.selectedSkuIds.push(nextSku.id); state.ui.currentSku = state.skus.length - 1; scheduleSave(); render(); }
+    if (action === 'add-sku') { if (state.skus.length < MAX_SKU) { const nextSku = defaultSku(); state.skus.push(nextSku); if (state.ui.checklistMode !== 'individual' && state.groupChecklist?.selectionInitialized) state.groupChecklist.selectedSkuIds.push(nextSku.id); state.ui.currentSku = state.skus.length - 1; scheduleSave(); render(); } }
     if (action === 'remove-sku') { const i = Number(button.dataset.sku); if (state.skus.length > 1 && confirm(`Удалить ${getSkuLabel(state.skus[i], i)}?`)) { state.skus.splice(i, 1); state.ui.currentSku = Math.min(state.ui.currentSku, state.skus.length - 1); scheduleSave(); render(); } }
     if (action === 'move-sku') { moveSku(Number(button.dataset.sku), Number(button.dataset.delta)); }
     if (action === 'toggle-feature') { const skuIndex = Number(button.dataset.sku); const sku = state.skus[skuIndex]; const key = button.dataset.feature; if (sku && key in FEATURE_LABELS) { sku[key] = !sku[key]; if (!sku[key]) QUESTIONS.filter(q => q.feature === key).forEach(q => { delete sku.checklist[q.code]; }); scheduleSave(); button.classList.toggle('active', sku[key]); button.setAttribute('aria-pressed', String(sku[key])); updateProductAssistant(skuIndex); updateSkuStatusChrome(skuIndex); updateGlobalProgress(); if (isOperationalMode()) render(); } }
@@ -4748,11 +4752,11 @@
     const normalizedType = exportType === 'old' ? 'old' : 'new';
     const validation = getValidation();
     if (validation.errors.length) { requestExport(normalizedType); return; }
-    const label = normalizedType === 'old' ? 'старую форму' : 'масштабируемый Excel';
+    const label = normalizedType === 'old' ? 'старую форму' : 'новую форму';
     exportCancelled = false; saveNow(); const exportState = buildExportState();
     setExportLoading(true, `Проверяем способ формирования: ${label}…`, 8, `Формируем ${label}`);
     let serverError = null;
-    if (normalizedType === 'old' && location.protocol !== 'file:') {
+    if (location.protocol !== 'file:') {
       const controller = new AbortController(); activeExportAbortController = controller; const timer = setTimeout(() => controller.abort(), 25000);
       try {
         setExportLoading(true, `Заполняем ${label}…`, 38, `Формируем ${label}`);
@@ -4817,262 +4821,6 @@
     return question.row >= 29 ? question.row - 1 : question.row;
   }
 
-  function buildUnlimitedWorkbookLayout(workbook) {
-    const RED = 'FFE30613';
-    const DARK = 'FF26262A';
-    const MUTED = 'FF6B6B73';
-    const LIGHT = 'FFF5F5F7';
-    const LINE = 'FFE3E3E7';
-    const WHITE = 'FFFFFFFF';
-
-    const makeTitle = (sheet, range, title) => {
-      sheet.mergeCells(range);
-      const cell = sheet.getCell(range.split(':')[0]);
-      cell.value = title;
-      cell.font = { name: 'Arial', size: 15, bold: true, color: { argb: WHITE } };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: RED } };
-      cell.alignment = { vertical: 'middle', horizontal: 'left' };
-      sheet.getRow(cell.row).height = 30;
-    };
-    const styleHeader = (row, columnCount) => {
-      row.height = 32;
-      for (let col = 1; col <= columnCount; col += 1) {
-        const cell = row.getCell(col);
-        cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: WHITE } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK } };
-        cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-        cell.border = { bottom: { style: 'thin', color: { argb: LINE } }, right: { style: 'thin', color: { argb: 'FF4B4B50' } } };
-      }
-    };
-    const styleMetaLabel = cell => {
-      cell.font = { name: 'Arial', size: 8, bold: true, color: { argb: MUTED } };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT } };
-      cell.alignment = { vertical: 'middle', wrapText: true };
-    };
-    const styleMetaValue = cell => {
-      cell.font = { name: 'Arial', size: 9, bold: true, color: { argb: DARK } };
-      cell.alignment = { vertical: 'middle', wrapText: true };
-    };
-
-    const ws = workbook.addWorksheet('Чек лист_ДП_Отчет', { properties: { defaultRowHeight: 20 } });
-    makeTitle(ws, 'A1:S1', 'Магнит · Дистанционная приёмка · Чек-лист без ограничения количества ТП');
-    ws.mergeCells('A2:S2');
-    ws.getCell('A2').value = 'Масштабируемая форма: каждая товарная позиция занимает отдельную строку. Полный контроль вынесен на лист «Контроль_по_позициям».';
-    ws.getCell('A2').font = { name: 'Arial', size: 9, italic: true, color: { argb: MUTED } };
-    ws.getCell('A2').alignment = { vertical: 'middle', wrapText: true };
-    ws.getRow(2).height = 28;
-
-    const metaPairs = [
-      ['A3','Номер заявки','B3'], ['C3','РЦ','D3'], ['E3','Дата приёмки','F3'], ['G3','Поставщик','H3'],
-      ['I3','Формат','J3'], ['K3','МОКК','L3'], ['M3','ДП (ID)','N3'], ['O3','Подключение','P3'], ['Q3','Начало приёмки','R3'],
-      ['A4','Окончание приёмки','B4'], ['C4','Окончание отчёта','D4'],
-    ];
-    metaPairs.forEach(([labelAddr, label, valueAddr]) => {
-      ws.getCell(labelAddr).value = label;
-      styleMetaLabel(ws.getCell(labelAddr));
-      styleMetaValue(ws.getCell(valueAddr));
-    });
-    ws.getRow(3).height = 25; ws.getRow(4).height = 25;
-
-    ws.getRow(6).values = ['№','Номер заявки','РЦ','Дата приёмки','Поставщик','Код товара / SKU','Наименование товара','Формат','МОКК','ДП (ID)','ВПТ','Масса выборки, кг','Брак, кг','Нестандарт, кг','Осыпь, кг','Некалибр, кг','Brix','Ошибка АРМ','Комментарий'];
-    styleHeader(ws.getRow(6), 19);
-    const summaryWidths = [6,18,25,15,25,19,36,14,20,12,11,17,13,16,13,15,20,14,34];
-    summaryWidths.forEach((width, index) => { ws.getColumn(index + 1).width = width; });
-    ws.views = [{ state: 'frozen', ySplit: 6 }];
-    ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
-
-    const controlWs = workbook.addWorksheet('Контроль_по_позициям', { properties: { defaultRowHeight: 20 } });
-    makeTitle(controlWs, 'A1:I1', 'Подробный контроль по каждой товарной позиции');
-    controlWs.mergeCells('A2:I2');
-    controlWs.getCell('A2').value = 'Каждый пункт чек-листа записывается отдельной строкой — количество товарных позиций не ограничено схемой файла.';
-    controlWs.getCell('A2').font = { name: 'Arial', size: 9, italic: true, color: { argb: MUTED } };
-    controlWs.getCell('A2').alignment = { vertical: 'middle', wrapText: true };
-    controlWs.getRow(3).values = ['№ ТП','Код товара / SKU','Наименование товара','Этап','Код пункта','Контроль','Результат','Время','Комментарий'];
-    styleHeader(controlWs.getRow(3), 9);
-    [8,19,36,26,12,52,20,12,44].forEach((width, index) => { controlWs.getColumn(index + 1).width = width; });
-    controlWs.views = [{ state: 'frozen', ySplit: 3 }];
-
-    const defectsWs = workbook.addWorksheet('Дефекты', { properties: { defaultRowHeight: 20 } });
-    makeTitle(defectsWs, 'A1:H1', 'Зафиксированные дефекты по товарным позициям');
-    defectsWs.mergeCells('A2:H2');
-    defectsWs.getCell('A2').value = 'Строки формируются только для реально заполненных дефектов.';
-    defectsWs.getCell('A2').font = { name: 'Arial', size: 9, italic: true, color: { argb: MUTED } };
-    defectsWs.getRow(3).values = ['№ ТП','Код товара / SKU','Наименование товара','Тип дефекта','Визуальная оценка','Количество единиц','Комментарий','№ заявки'];
-    styleHeader(defectsWs.getRow(3), 8);
-    [8,19,36,30,24,19,44,20].forEach((width, index) => { defectsWs.getColumn(index + 1).width = width; });
-    defectsWs.views = [{ state: 'frozen', ySplit: 3 }];
-
-    const metaWs = workbook.addWorksheet('Тех_метки_для_Python');
-    metaWs.state = 'hidden';
-    const metadataRows = [
-      ['template_id','dp.checklist.acceptance.unlimited'],
-      ['template_version','v97-unlimited'],
-      ['schema_version','2.0-unlimited'],
-      ['sku_capacity','unlimited'],
-      ['layout_mode','vertical-unlimited'],
-      ['summary_sheet','Чек лист_ДП_Отчет'],
-      ['control_sheet','Контроль_по_позициям'],
-      ['defects_sheet','Дефекты'],
-    ];
-    metadataRows.forEach((values, index) => { metaWs.getRow(index + 1).values = values; });
-    metaWs.getColumn(1).width = 24; metaWs.getColumn(2).width = 42;
-    return workbook;
-  }
-
-  function applyUnlimitedExcelRowStyle(row, columnCount, alternate = false) {
-    for (let col = 1; col <= columnCount; col += 1) {
-      const cell = row.getCell(col);
-      cell.alignment = { vertical: 'top', wrapText: true };
-      cell.font = { name: 'Arial', size: 9, color: { argb: 'FF222222' } };
-      cell.border = {
-        bottom: { style: 'thin', color: { argb: 'FFD9D9D9' } },
-        right: { style: 'thin', color: { argb: 'FFF0F0F0' } },
-      };
-      if (alternate) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFAFAFA' } };
-    }
-  }
-
-  function unlimitedQuestionResult(sku, question) {
-    const answer = sku?.checklist?.[question.code] || {};
-    if (!isApplicable(sku, question) || answer.status === 'na') return 'не контролируется';
-    if (question.type === 'number') {
-      const value = numberOrBlank(answer.value);
-      return value === '' ? '' : value;
-    }
-    return localizedStatus(answer.status);
-  }
-
-  function fillUnlimitedTemplateWorkbook(workbook, exportState) {
-    const ws = workbook.getWorksheet('Чек лист_ДП_Отчет') || workbook.worksheets[0];
-    const controlWs = workbook.getWorksheet('Контроль_по_позициям');
-    const defectsWs = workbook.getWorksheet('Дефекты');
-    const metaWs = workbook.getWorksheet('Тех_метки_для_Python');
-    if (!ws || !controlWs || !defectsWs) throw new Error('Масштабируемый Excel-шаблон повреждён.');
-
-    workbook.creator = 'Дистанционная Приёмка';
-    workbook.lastModifiedBy = 'Дистанционная Приёмка';
-    workbook.lastPrinted = undefined;
-    workbook.modified = new Date();
-    workbook.calcProperties.fullCalcOnLoad = true;
-    workbook.calcProperties.forceFullCalc = true;
-    workbook.calcProperties.calcMode = 'auto';
-
-    const shipment = exportState.shipment || {};
-    const skus = Array.isArray(exportState.skus) ? exportState.skus : [];
-    const dateValue = shipment.date ? excelSerialFromInput(`${shipment.date}T00:00`) : null;
-    const connectionTime = excelSerialFromInput(shipment.connectionTime);
-    const acceptanceStart = excelSerialFromInput(shipment.acceptanceStart);
-    const acceptanceEnd = excelSerialFromInput(shipment.acceptanceEnd);
-    const reportEnd = excelSerialFromInput(shipment.reportEnd);
-
-    const metadata = [
-      ['B3', shipment.id || ''], ['D3', shipment.rc || ''], ['F3', dateValue], ['H3', shipment.supplier || ''],
-      ['J3', shipment.format || ''], ['L3', shipment.mokk || ''], ['N3', shipment.dpId || ''],
-      ['P3', connectionTime], ['R3', acceptanceStart], ['B4', acceptanceEnd], ['D4', reportEnd],
-    ];
-    metadata.forEach(([address, value]) => { ws.getCell(address).value = value || null; });
-    if (dateValue) ws.getCell('F3').numFmt = 'dd.mm.yyyy';
-    ['P3','R3','B4','D4'].forEach(address => { if (ws.getCell(address).value !== null) ws.getCell(address).numFmt = 'hh:mm'; });
-
-    let summaryRow = 7;
-    skus.forEach((sku, index) => {
-      const row = ws.getRow(summaryRow);
-      row.values = [
-        index + 1,
-        shipment.id || '',
-        shipment.rc || '',
-        dateValue,
-        shipment.supplier || '',
-        sku.code || '',
-        sku.name || '',
-        shipment.format || '',
-        shipment.mokk || '',
-        shipment.dpId || '',
-        sku.vpt || '',
-        numberOrBlank(sku.sampleMass) === '' ? null : numberOrBlank(sku.sampleMass),
-        numberOrBlank(sku.defectMass) === '' ? null : numberOrBlank(sku.defectMass),
-        numberOrBlank(sku.nonstandardMass) === '' ? null : numberOrBlank(sku.nonstandardMass),
-        numberOrBlank(sku.debrisMass) === '' ? null : numberOrBlank(sku.debrisMass),
-        numberOrBlank(sku.caliberMass) === '' ? null : numberOrBlank(sku.caliberMass),
-        brixValuesForExport(sku) || '',
-        sku.apmError === 'yes' ? 'да' : 'нет',
-        sku.comment || '',
-      ];
-      if (dateValue) row.getCell(4).numFmt = 'dd.mm.yyyy';
-      [12,13,14,15,16].forEach(col => { row.getCell(col).numFmt = '0.000'; });
-      row.height = 30;
-      applyUnlimitedExcelRowStyle(row, 19, index % 2 === 1);
-      summaryRow += 1;
-    });
-    ws.autoFilter = { from: { row: 6, column: 1 }, to: { row: Math.max(6, summaryRow - 1), column: 19 } };
-    ws.views = [{ state: 'frozen', ySplit: 6 }];
-    ws.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
-
-    let controlRow = 4;
-    skus.forEach((sku, skuIndex) => {
-      QUESTIONS.forEach(question => {
-        const answer = sku?.checklist?.[question.code] || {};
-        const stage = STEP_GROUPS.find(item => item.id === question.step)?.title || `Этап ${Number(question.step) + 1}`;
-        const timeValue = isApplicable(sku, question) && answer.status !== 'na' && questionAllowsTimeValue(question, answer)
-          ? excelSerialFromInput(answer.time)
-          : null;
-        const row = controlWs.getRow(controlRow);
-        row.values = [
-          skuIndex + 1,
-          sku.code || '',
-          sku.name || '',
-          stage,
-          question.code,
-          question.text,
-          unlimitedQuestionResult(sku, question),
-          timeValue,
-          answer.comment || '',
-        ];
-        if (timeValue !== null) row.getCell(8).numFmt = 'hh:mm';
-        row.height = 28;
-        applyUnlimitedExcelRowStyle(row, 9, skuIndex % 2 === 1);
-        controlRow += 1;
-      });
-    });
-    controlWs.autoFilter = { from: { row: 3, column: 1 }, to: { row: Math.max(3, controlRow - 1), column: 9 } };
-    controlWs.views = [{ state: 'frozen', ySplit: 3 }];
-
-    let defectRow = 4;
-    skus.forEach((sku, skuIndex) => {
-      (Array.isArray(sku.defects) ? sku.defects : []).forEach(defect => {
-        if (!defect || (!String(defect.type || '').trim() && !String(defect.comment || '').trim() && numberOrBlank(defect.count) === '')) return;
-        const row = defectsWs.getRow(defectRow);
-        row.values = [
-          skuIndex + 1,
-          sku.code || '',
-          sku.name || '',
-          defectTypeForExport(defect) || '',
-          localizedVisual(defect.visual) || '',
-          numberOrBlank(defect.count) === '' ? null : numberOrBlank(defect.count),
-          defect.comment || '',
-          shipment.id || '',
-        ];
-        row.height = 28;
-        applyUnlimitedExcelRowStyle(row, 8, skuIndex % 2 === 1);
-        defectRow += 1;
-      });
-    });
-    defectsWs.autoFilter = { from: { row: 3, column: 1 }, to: { row: Math.max(3, defectRow - 1), column: 8 } };
-    defectsWs.views = [{ state: 'frozen', ySplit: 3 }];
-
-    if (metaWs) {
-      metaWs.getCell('A10').value = 'exported_at';
-      metaWs.getCell('B10').value = new Date().toISOString();
-      metaWs.getCell('A11').value = 'sku_count';
-      metaWs.getCell('B11').value = skus.length;
-      metaWs.getCell('A12').value = 'request_number';
-      metaWs.getCell('B12').value = shipment.id || '';
-      metaWs.getCell('A13').value = 'dp_id';
-      metaWs.getCell('B13').value = shipment.dpId || '';
-    }
-    return workbook;
-  }
-
   function fillExactTemplateWorkbook(workbook, exportState, exportType = 'new') {
     const ws = workbook.getWorksheet('Чек лист_ДП_Отчет') || workbook.worksheets[0];
     if (!ws) throw new Error('Не найден основной лист шаблона.');
@@ -5104,13 +4852,13 @@
 
     const summaryColumns = ['C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','X','AA','AB'];
     const allChecklistTimes = [];
-    const blocks = Array.from({ length: TEMPLATE_SKU_CAPACITY }, (_, index) => skuExcelBlock(index));
+    const blocks = Array.from({ length: MAX_SKU }, (_, index) => skuExcelBlock(index));
     blocks.forEach(block => {
       const helperCell = ws.getCell(`${block.helper}${layout.checklistMinRow}`);
       helperCell.value = { formula: layout.helperProcessRows.map(r => `${block.helper}${r}`).join('+'), result: 0 };
     });
 
-    for (let i = 0; i < TEMPLATE_SKU_CAPACITY; i++) {
+    for (let i = 0; i < MAX_SKU; i++) {
       const row = 5 + i; const sku = exportState.skus?.[i]; const block = blocks[i];
       const values = sku ? [s.id || '', s.rc || '', s.date ? new Date(`${s.date}T00:00:00`) : null, s.supplier || '', sku.code || '', sku.name || '', s.format || '', s.mokk || '', s.dpId || '', sku.vpt || '', numberOrBlank(sku.sampleMass), numberOrBlank(sku.defectMass), numberOrBlank(sku.nonstandardMass), numberOrBlank(sku.debrisMass), numberOrBlank(sku.caliberMass), brixValuesForExport(sku) || null, sku.apmError === 'yes' ? 'да' : 'нет', sku.comment || ''] : Array(summaryColumns.length).fill(null);
       summaryColumns.forEach((col, idx) => { const cell = ws.getCell(`${col}${row}`); const value = values[idx]; cell.value = value === '' ? null : value; if (col === 'E' && value) cell.numFmt = 'dd.mm.yyyy'; });
@@ -5201,7 +4949,7 @@
     ws.getCell(layout.totalDurationCell).value = { formula: `IF(OR(SUM(${statusSumExpr})=0,${layout.checkAndFillCell}="",${layout.overallDurationCell}=""),"",${layout.checkAndFillCell}+${layout.overallDurationCell})`, result: totalDuration };
     ws.getCell(layout.checkAndFillCell).numFmt = '[h]:mm'; ws.getCell(layout.totalDurationCell).numFmt = '[h]:mm';
     const reportDuration = acceptanceEnd !== null && reportEnd !== null ? reportEnd - acceptanceEnd : null;
-    for (let i = 0; i < TEMPLATE_SKU_CAPACITY; i++) {
+    for (let i = 0; i < MAX_SKU; i++) {
       const row = 5 + i; const block = blocks[i];
       ws.getCell(`AI${row}`).value = exportState.skus?.[i] && reportDuration !== null ? { formula: `IF(OR(G${row}="",${layout.reportEndCell}="",${layout.overallEndCell}=""),"",${layout.reportEndCell}-${layout.overallEndCell})`, result: reportDuration } : null;
     }
@@ -5228,24 +4976,16 @@
 
   async function exportExcelSafeBrowser(exportState, exportType = 'new') {
     if (!window.ExcelJS) throw new Error('Не загрузился модуль ExcelJS.');
+    const templateBase64 = exportType === 'old' ? globalThis.OLD_TEMPLATE_XLSX_BASE64 : globalThis.TEMPLATE_XLSX_BASE64;
+    if (!templateBase64) throw new Error('Не загрузился Excel-шаблон.');
     const workbook = new ExcelJS.Workbook();
-    if (exportType === 'old') {
-      const templateBase64 = globalThis.OLD_TEMPLATE_XLSX_BASE64;
-      if (!templateBase64) throw new Error('Не загрузился старый Excel-шаблон.');
-      setExportLoading(true, 'Открываем старый Excel-шаблон…', 30);
-      await promiseWithTimeout(workbook.xlsx.load(base64ToArrayBuffer(templateBase64)), 18000, 'Не удалось открыть старый Excel-шаблон.');
-      if (exportCancelled) return;
-      setExportLoading(true, `Заполняем ${Math.min(exportState.skus?.length || 0, TEMPLATE_SKU_CAPACITY)} товарных позиций старой формы…`, 62);
-      fillExactTemplateWorkbook(workbook, exportState, 'old');
-    } else {
-      setExportLoading(true, 'Создаём масштабируемый Excel…', 30);
-      buildUnlimitedWorkbookLayout(workbook);
-      if (exportCancelled) return;
-      setExportLoading(true, `Заполняем ${exportState.skus?.length || 0} товарных позиций без ограничения…`, 62);
-      fillUnlimitedTemplateWorkbook(workbook, exportState);
-    }
+    setExportLoading(true, 'Открываем Excel-шаблон…', 30);
+    await promiseWithTimeout(workbook.xlsx.load(base64ToArrayBuffer(templateBase64)), 18000, 'Не удалось открыть Excel-шаблон.');
+    if (exportCancelled) return;
+    setExportLoading(true, 'Заполняем данные, чек-лист и дефекты…', 62);
+    fillExactTemplateWorkbook(workbook, exportState, exportType);
     setExportLoading(true, 'Сохраняем таблицу…', 84);
-    const out = await promiseWithTimeout(workbook.xlsx.writeBuffer(), 45000, 'Превышено время сохранения Excel.');
+    const out = await promiseWithTimeout(workbook.xlsx.writeBuffer(), 25000, 'Превышено время сохранения Excel.');
     if (exportCancelled) return;
     setExportLoading(true, 'Удаляем сведения об авторе файла…', 92);
     const cleanedOut = await promiseWithTimeout(stripPersonalExcelMetadata(out), 15000, 'Не удалось очистить свойства Excel.');
